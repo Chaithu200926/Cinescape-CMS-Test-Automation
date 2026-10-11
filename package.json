@@ -1,0 +1,30 @@
+{
+  "//": {
+    "about": "Project file: name, the npm commands below, and the packages the tests need. JSON has no comments, so they live under this \"//\" key, which npm ignores.",
+    "scripts.test": "Run all CMS test cases (signs in once, then runs every spec in tests/).",
+    "scripts.test:headed": "Same, with the browser window visible.",
+    "scripts.report": "Open the Playwright HTML report of the last run (steps, screenshots, videos).",
+    "scripts.probe": "Sign in and save every menu page's controls to inspect/ (for writing new specs).",
+    "scripts.dashboard": "Build the HTML dashboard from the last test run into dashboard/.",
+    "scripts.typecheck": "Check the TypeScript code for errors.",
+    "devDependencies": "@playwright/test = browser, runner and report; dotenv = loads .env; typescript/@types/node = type checking."
+  },
+  "name": "cinescape-cms-automation",
+  "version": "1.0.0",
+  "description": "Playwright UI automation for the Cinescape CMS (back office), UAT",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "report": "playwright show-report",
+    "probe": "playwright test --config scripts/probe.config.ts",
+    "dashboard": "node scripts/generate-dashboard.js",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.3",
+    "dotenv": "^18.0.4",
+    "typescript": "^7.0.2"
+  }
+}

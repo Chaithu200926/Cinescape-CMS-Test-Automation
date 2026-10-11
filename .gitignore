@@ -1,0 +1,16 @@
+# Files and folders git must NOT upload.
+
+# Installed npm packages (recreated with `npm ci`).
+node_modules/
+# Raw Playwright output from the last run (screenshots, videos, traces).
+test-results/
+# Playwright HTML report of the last local run.
+playwright-report/
+# Dashboard built by local runs (`npm run dashboard`).
+dashboard/
+# Signed-in browser session saved by src/global-setup.ts (contains the CMS session cookie).
+.auth/
+# Pages saved by the probe (scripts/probe.spec.ts).
+inspect/
+# Secrets: CMS admin account. Never commit this file.
+.env
