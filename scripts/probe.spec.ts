@@ -4,7 +4,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { test } from '@playwright/test';
-import { cmsPages } from '../src/cms-pages';
+import { pages } from '../src/cms-pages';
+import { recordForms } from '../src/cms-forms';
 import { config } from '../src/config';
 
 const out = path.join(__dirname, '..', 'inspect');
@@ -29,13 +30,14 @@ test('probe CMS pages and Add forms', async ({ page }) => {
       };
     });
 
-  for (const [key, p] of Object.entries(cmsPages)) {
+  for (const [key, p] of Object.entries(pages)) {
     const name = key.replace(/[^a-z0-9]+/gi, '-').replace(/-+$/, '');
     await page.goto(config.baseUrl + p.path, { waitUntil: 'networkidle' }).catch(() => {});
     report[key] = { list: await describe() };
     await page.screenshot({ path: path.join(out, `${name}.png`), fullPage: true });
-    if (p.addButton) {
-      const add = page.locator('a, button').filter({ hasText: p.addButton }).first();
+    const addHref = recordForms[p.name]?.add;
+    if (addHref) {
+      const add = page.locator(`a[href="${addHref}"]`).first();
       if (await add.isVisible().catch(() => false)) {
         await add.click();
         await page.waitForLoadState('networkidle');

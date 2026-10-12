@@ -4,7 +4,10 @@ import { expect, type Locator, type Page } from '@playwright/test';
 
 export class DataTable {
   readonly wrapper: Locator;
+  /** The table with the records (with horizontal scrolling, DataTables puts the visible header in a separate table). */
   readonly table: Locator;
+  /** The visible header row: the scroll header's when the table scrolls sideways, otherwise the table's own. */
+  readonly head: Locator;
   readonly rows: Locator;
   readonly info: Locator;
   readonly search: Locator;
@@ -13,7 +16,8 @@ export class DataTable {
 
   constructor(readonly page: Page, scope: Locator | Page = page) {
     this.wrapper = scope.locator('.dataTables_wrapper').first();
-    this.table = this.wrapper.locator('table.dataTable, table').first();
+    this.table = this.wrapper.locator('table:not(.dataTables_scrollHead table):not(.dataTables_scrollFoot table)').first();
+    this.head = this.wrapper.locator('thead').first();
     // DataTables shows one "No data / No matching records" row with a single cell when empty.
     this.rows = this.table.locator('tbody tr:not(:has(td.dataTables_empty))');
     this.info = this.wrapper.locator('.dataTables_info');
@@ -24,6 +28,8 @@ export class DataTable {
 
   /** Total number of entries from "Showing 1 to 10 of 57 entries" (filtered count when searching). */
   async total(): Promise<number> {
+    // Report results have no "Showing ... entries" line (the CMS pages them itself): count the rows shown.
+    if (!(await this.info.count())) return this.rows.count();
     const text = (await this.info.textContent()) ?? '';
     const m = text.replace(/,/g, '').match(/of\s+(\d+)\s+entries/i);
     return m ? Number(m[1]) : 0;
@@ -31,6 +37,7 @@ export class DataTable {
 
   /** First and last row number shown, from "Showing 11 to 20 of 57 entries". */
   async range(): Promise<[number, number]> {
+    if (!(await this.info.count())) return [1, await this.rows.count()];
     const m = ((await this.info.textContent()) ?? '').replace(/,/g, '').match(/showing\s+(\d+)\s+to\s+(\d+)/i);
     return m ? [Number(m[1]), Number(m[2])] : [0, 0];
   }
@@ -54,7 +61,7 @@ export class DataTable {
 
   /** Column headers that can be sorted (DataTables marks them with class "sorting"). */
   sortableHeaders(): Locator {
-    return this.table.locator('thead th.sorting, thead th.sorting_asc, thead th.sorting_desc');
+    return this.head.locator('th.sorting, th.sorting_asc, th.sorting_desc');
   }
 }
 

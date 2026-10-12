@@ -6,20 +6,17 @@ const os = require('os');
 const path = require('path');
 const { execSync } = require('child_process');
 
-// Project folder; load .env for local settings.
+// Project folder; load .env so the CMS under test can be shown.
 const root = path.join(__dirname, '..');
 require('dotenv').config({ path: path.join(root, '.env'), quiet: true });
 
 // Input (Playwright JSON results), output folder, screenshot/video folder and run history.
 const resultsPath = path.join(root, 'test-results', 'results.json');
-// REPORT_DIR=reports is used by `npm run publish-results`; local builds go to dashboard/.
-const outputDir = path.join(root, process.env.REPORT_DIR || 'dashboard');
+const outputDir = path.join(root, 'dashboard');
 const assetDir = path.join(outputDir, 'assets');
 // On GitHub the workflow restores the history from its cache and points HISTORY_FILE at it.
 const historyPath = process.env.HISTORY_FILE || path.join(outputDir, 'history.json');
 const HISTORY_LIMIT = 30;
-// CMS under test (same default as src/config.ts).
-const cmsUrl = (process.env.CMS_URL || 'http://10.35.1.66:8092').replace(/\/$/, '');
 
 // Stop early if the tests have not been run yet.
 if (!fs.existsSync(resultsPath)) {
@@ -51,20 +48,20 @@ function flattenSteps(steps, parentTitles = []) {
   });
 }
 
-// Save each screenshot a test attached as a PNG file in dashboard/assets.
+// Save each screenshot a test attached (inline or as a file) as a PNG file in dashboard/assets.
 function writeSnapshots(attachments, testIndex) {
   return (attachments || [])
-    .filter((a) => a.contentType === 'image/png' && a.body)
+    .filter((a) => a.contentType === 'image/png' && (a.body || (a.path && fs.existsSync(a.path))))
     .map((a, i) => {
       const fileName = `test-${testIndex + 1}-snapshot-${i + 1}.png`;
       fs.mkdirSync(assetDir, { recursive: true });
-      fs.writeFileSync(path.join(assetDir, fileName), Buffer.from(a.body, 'base64'));
+      if (a.body) fs.writeFileSync(path.join(assetDir, fileName), Buffer.from(a.body, 'base64'));
+      else fs.copyFileSync(a.path, path.join(assetDir, fileName));
       return { name: a.name, path: `assets/${fileName}` };
     });
 }
 
-// Copy the test's video parts (if recorded) into dashboard/assets. Payment tests have two parts:
-// the video is paused while the club card number and mobile are on screen.
+// Copy the test's videos (the test page, and a second user's browser if any) into dashboard/assets.
 function writeVideos(attachments, testIndex) {
   return (attachments || [])
     .filter((x) => x.contentType?.startsWith('video/') && x.path && fs.existsSync(x.path))
@@ -72,7 +69,7 @@ function writeVideos(attachments, testIndex) {
       const fileName = `test-${testIndex + 1}-video${i ? `-${i + 1}` : ''}${path.extname(a.path) || '.webm'}`;
       fs.mkdirSync(assetDir, { recursive: true });
       fs.copyFileSync(a.path, path.join(assetDir, fileName));
-      return { name: a.name, contentType: a.contentType, path: `assets/${fileName}` };
+      return { name: a.name === 'video' ? 'Test video' : a.name, contentType: a.contentType, path: `assets/${fileName}` };
     });
 }
 
@@ -88,24 +85,30 @@ function collect(suite, ancestors = []) {
       const steps = flattenSteps(r.steps).filter(
         (s) => !s.title.split(' › ').some((part) => /^(Before Hooks|After Hooks|Worker Cleanup|Fixture |Attach ")/i.test(part)),
       );
-      // Put each screenshot under the step it belongs to: screenshots are named "NN <step title>".
+      // Put each screenshot under the step it belongs to; the others (e.g. a second user's screen, the last screen)
+      // are listed separately.
+      const otherSnapshots = [];
       for (const snap of snapshots) {
-        const target = snap.name.replace(/^\d+ /, '');
-        const step = steps.find((s) => s.title === target || s.title.endsWith(` › ${target}`));
+        // Step screenshots are named after their step (the step() fixture in src/fixtures.ts).
+        const step = steps.find((s) => s.title === snap.name || s.title.endsWith(` › ${snap.name}`));
         if (step) (step.snapshots ||= []).push(snap);
+        else otherSnapshots.push(snap);
       }
+      // Notes the test recorded (booking IDs, amounts, what the site showed), without repeats.
+      const notes = [...(t.annotations || []), ...(r.annotations || [])]
+        .filter((n, j, all) => all.findIndex((m) => m.type === n.type && m.description === n.description) === j);
       tests.push({
         id: spec.title,
         title: [...ancestors, spec.title].filter(Boolean).join(' › '),
         file: spec.file,
-        browser: 'Chromium',
+        browser: t.projectName || 'chromium',
         status: r.status || t.status || 'unknown',
         duration: r.duration || 0,
         error: stripAnsi(r.error?.message),
         steps,
+        otherSnapshots,
+        notes,
         videos: writeVideos(r.attachments, index),
-        // Notes the test recorded (sheet steps, expected result, findings).
-        notes: (r.annotations?.length ? r.annotations : t.annotations || []).filter((a) => a.description),
       });
     }
   }
@@ -167,13 +170,13 @@ const run = {
   commitUrl: sha && repoUrl ? `${repoUrl}/commit/${sha}` : '',
   author: process.env.GITHUB_ACTOR || git('log -1 --pretty=%an'),
   branch: process.env.GITHUB_REF_NAME || git('branch --show-current'),
-  trigger: process.env.CMS_TRIGGER || process.env.GITHUB_EVENT_NAME || 'local run',
-  machine: process.env.GITHUB_ACTIONS ? `GitHub-hosted runner (${process.env.RUNNER_OS || os.type()})` : 'QA PC (Windows desktop)',
+  trigger: process.env.GITHUB_EVENT_NAME || 'local run',
+  machine: process.env.GITHUB_ACTIONS ? `GitHub-hosted runner (${process.env.RUNNER_OS || os.type()})` : 'Local PC',
   os: `${os.type()} ${os.release()}`,
   node: process.version,
   playwright: pkgVersion('@playwright/test'),
-  browser: 'Chromium (Playwright)',
-  site: `Cinescape CMS UAT · ${cmsUrl}`,
+  browser: [...new Set(tests.map((t) => t.browser))].join(', ') || 'chromium',
+  site: process.env.CMS_URL || 'http://10.35.1.66:8092',
   started,
   finished: new Date(started.getTime() + wallMs),
   wallMs,
@@ -264,7 +267,7 @@ const testCards = tests
   .map((t, i) => {
     const k = kind(t.status);
     const failedSteps = t.steps.filter((s) => s.failed).length;
-    return `<article class="test ${k}" id="test-${i + 1}">
+    return `<article class="test ${k}" id="test-${i + 1}" data-kind="${k}" data-text="${esc(t.title.toLowerCase())}">
   <header>
     <span class="pill ${k}">${icon[k]} ${label(t.status)}</span>
     <h3>${esc(t.title)}</h3>
@@ -272,10 +275,11 @@ const testCards = tests
     <span class="muted">${secs(t.duration)}</span>
   </header>
   <p class="file">${esc(t.file)} · ${esc(t.browser)} · ${t.steps.length} steps${failedSteps ? ` · ${failedSteps} failed` : ''}</p>
-  ${t.notes.length ? `<ul class="notes">${t.notes.map((n) => `<li><b>${esc(n.type)}:</b> ${esc(n.description)}</li>`).join('')}</ul>` : ''}
   ${t.error ? `<details class="err" open><summary>Failure details</summary><pre class="error">${esc(t.error)}</pre></details>` : ''}
-  ${t.videos.map((v, n) => `<details><summary>Watch test video${t.videos.length > 1 ? ` (part ${n + 1} of ${t.videos.length})` : ''}</summary><video class="video" controls preload="metadata"><source src="${esc(v.path)}" type="${esc(v.contentType)}">This viewer cannot play the video.</video></details>`).join('')}
+  ${t.notes.length ? `<details open><summary>Notes from the test (${t.notes.length})</summary><ul class="notes">${t.notes.map((n) => `<li><b>${esc(n.type)}:</b> ${esc(n.description)}</li>`).join('')}</ul></details>` : ''}
+  ${t.videos.map((v) => `<details><summary>Watch ${esc(v.name.toLowerCase().startsWith('user 2') ? v.name : 'test video')}</summary><video class="video" controls preload="metadata"><source src="${esc(v.path)}" type="${esc(v.contentType)}">Your browser cannot play WebM video.</video></details>`).join('')}
   <details ${t.error ? 'open' : ''}><summary>${t.steps.length} execution steps with screenshots</summary>${stepsHtml(t.steps)}</details>
+  ${t.otherSnapshots.length ? `<details><summary>Other screenshots (${t.otherSnapshots.length})</summary><div class="others">${t.otherSnapshots.map((p) => `<figure><a href="${esc(p.path)}" target="_blank"><img class="snapshot" loading="lazy" src="${esc(p.path)}" alt="Screenshot: ${esc(p.name)}"></a><figcaption>${esc(p.name)}</figcaption></figure>`).join('')}</div></details>` : ''}
 </article>`;
   })
   .join('\n');
@@ -284,7 +288,7 @@ const testCards = tests
 const overview = tests
   .map((t, i) => {
     const k = kind(t.status);
-    return `<tr><td><a href="#test-${i + 1}">${esc(t.title)}</a></td><td><span class="pill ${k}">${icon[k]} ${label(t.status)}</span></td>
+    return `<tr data-kind="${k}" data-text="${esc(t.title.toLowerCase())}"><td><a href="#test-${i + 1}">${esc(t.title)}</a></td><td><span class="pill ${k}">${icon[k]} ${label(t.status)}</span></td>
       <td>${secs(t.duration)}</td><td>${t.steps.length}</td><td>${esc(t.error.split('\n')[0])}</td><td>${historyChips(t.id)}</td></tr>`;
   })
   .join('');
@@ -301,8 +305,8 @@ const runInfo = {
   'Machine': esc(run.machine),
   'OS': esc(run.os),
   'Node.js / Playwright': `${esc(run.node)} / ${esc(run.playwright)}`,
-  'Driver': esc(run.browser),
-  'App under test': esc(run.site),
+  'Browser': esc(run.browser),
+  'Site under test': `<a href="${esc(run.site)}">${esc(run.site)}</a>`,
 };
 
 // ---------- the dashboard page ----------
@@ -329,6 +333,14 @@ a { color:var(--accent); } .muted { color:var(--muted); font-size:13px; }
 .panel { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; }
 .tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin:20px 0; }
 .tile { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px 16px; }
+button.tile { font:inherit; color:inherit; text-align:left; cursor:pointer; } button.tile:hover, button.tile:focus-visible { border-color:var(--accent); }
+.filters { position:sticky; top:0; z-index:5; display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:12px; padding:10px 12px; }
+.fbtn { font:inherit; font-size:13px; padding:4px 12px; border-radius:20px; border:1px solid var(--line); background:var(--bg); color:var(--ink); cursor:pointer; }
+.fbtn b { font-variant-numeric:tabular-nums; } .fbtn[aria-pressed="true"] { border-color:var(--accent); background:var(--accent); color:var(--panel); }
+.fbtn.fail[aria-pressed="true"] { background:var(--critical); border-color:var(--critical); color:#fff; } .fbtn.pass[aria-pressed="true"] { background:var(--good); border-color:var(--good); color:#fff; }
+.fbtn.skip[aria-pressed="true"] { background:var(--warning); border-color:var(--warning); color:#1b2230; }
+#filter-text { font:inherit; font-size:13px; padding:4px 10px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--ink); min-width:220px; flex:1; max-width:340px; }
+[hidden] { display:none !important; }
 .tile b { display:block; font-size:28px; font-variant-numeric:tabular-nums; } .tile span { color:var(--muted); font-size:13px; }
 .two { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
 .kv { width:100%; border-collapse:collapse; font-size:13px; } .kv th { text-align:left; color:var(--muted); font-weight:500; padding:4px 12px 4px 0; width:38%; vertical-align:top; }
@@ -357,11 +369,12 @@ table.list th { color:var(--muted); font-weight:500; font-size:13px; }
 .test.fail { border-left-color:var(--critical); } .test.skip { border-left-color:var(--warning); }
 .test header { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 .file { font-family:Consolas, monospace; font-size:12px; color:var(--muted); margin:6px 0; }
-.notes { margin:6px 0 0; padding-left:18px; font-size:13px; }
 details { margin-top:8px; } summary { cursor:pointer; color:var(--accent); font-size:13px; }
 pre { background:var(--code); border:1px solid var(--line); border-radius:6px; padding:10px; overflow:auto; max-height:360px; font:12px/1.45 Consolas, monospace; white-space:pre-wrap; word-break:break-word; }
 pre.error { color:var(--critical-ink); }
 .video { display:block; width:min(100%,720px); margin-top:8px; border:1px solid var(--line); border-radius:8px; background:#000; }
+.notes { margin:6px 0 0; padding-left:18px; } .notes li { margin:3px 0; overflow-wrap:anywhere; }
+.others { display:flex; flex-wrap:wrap; gap:10px; } .others figure { margin:0; } .others figcaption { font-size:12px; color:var(--muted); max-width:320px; }
 .steps { margin:8px 0 0; padding-left:22px; font-size:13px; display:grid; gap:8px; }
 .step-row { display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; } .step-title { flex:1; min-width:200px; }
 .steps li.bad .step-title { color:var(--critical-ink); }
@@ -376,9 +389,9 @@ footer { color:var(--muted); font-size:13px; margin-top:24px; }
 
 <section class="tiles">
   <div class="tile"><b>${total}</b><span>Tests</span></div>
-  <div class="tile"><b>${passed}</b><span>✓ Passed</span></div>
-  <div class="tile"><b>${failed}</b><span>✗ Failed</span></div>
-  <div class="tile"><b>${skipped}</b><span>– Skipped</span></div>
+  <button type="button" class="tile" data-filter="pass" title="Show only the passed tests"><b>${passed}</b><span>✓ Passed</span></button>
+  <button type="button" class="tile" data-filter="fail" title="Show only the failed tests"><b>${failed}</b><span>✗ Failed</span></button>
+  <button type="button" class="tile" data-filter="skip" title="Show only the skipped tests"><b>${skipped}</b><span>– Skipped</span></button>
   <div class="tile"><b>${passRate}%</b><span>Pass rate</span></div>
   <div class="tile"><b>${stepCount}</b><span>Steps executed</span></div>
   <div class="tile"><b>${secs(run.wallMs)}</b><span>Duration</span></div>
@@ -392,14 +405,64 @@ footer { color:var(--muted); font-size:13px; margin-top:24px; }
 </section>
 
 <h2>Overview</h2>
-<div class="panel scroll"><table class="list"><thead><tr><th>Test</th><th>Result</th><th>Duration</th><th>Steps</th><th>Failure</th><th>Last 10 runs</th></tr></thead><tbody>${overview || '<tr><td colspan="6">No tests found</td></tr>'}</tbody></table></div>
+<div class="filters panel" role="toolbar" aria-label="Filter the tests">
+  <span class="muted">Show</span>
+  <button type="button" class="fbtn" data-filter="all" aria-pressed="true">All <b>${total}</b></button>
+  <button type="button" class="fbtn fail" data-filter="fail" aria-pressed="false">✗ Failed <b>${failed}</b></button>
+  <button type="button" class="fbtn pass" data-filter="pass" aria-pressed="false">✓ Passed <b>${passed}</b></button>
+  <button type="button" class="fbtn skip" data-filter="skip" aria-pressed="false">– Skipped <b>${skipped}</b></button>
+  <input type="search" id="filter-text" placeholder="Search a test, e.g. CMS-TC-033 or Language" aria-label="Search the tests by number or name">
+  <span class="muted" id="filter-count" aria-live="polite"></span>
+</div>
+<div class="panel scroll"><table class="list"><thead><tr><th>Test</th><th>Result</th><th>Duration</th><th>Steps</th><th>Failure</th><th>Last 10 runs</th></tr></thead><tbody>${overview || '<tr><td colspan="6">No tests found</td></tr>'}<tr id="no-match-row" hidden><td colspan="6" class="muted">No test matches this filter.</td></tr></tbody></table></div>
 
 <h2>Test details</h2>
 ${testCards || '<p>No tests found.</p>'}
+<p id="no-match-cards" class="muted" hidden>No test matches this filter.</p>
 <footer>Generated from Playwright JSON results. Screenshots and test videos are bundled with the dashboard.</footer>
 </main>
 <div class="tip" id="tip"></div>
 <script>
+// Filter: All / Failed / Passed / Skipped and a search box; applies to the overview table and the test cards.
+// The choice is kept in the address (#filter=fail&q=cms-tc-033), so a "failed only" link can be bookmarked or shared.
+(function () {
+  var state = { filter: 'all', q: '' };
+  var items = document.querySelectorAll('tr[data-kind], article[data-kind]');
+  var box = document.getElementById('filter-text');
+  function apply(keepAddress) {
+    var shown = 0, rows = 0, cards = 0, total = document.querySelectorAll('article[data-kind]').length;
+    items.forEach(function (el) {
+      var kind = el.getAttribute('data-kind');
+      var ok = (state.filter === 'all' || kind === state.filter)
+        && (!state.q || el.getAttribute('data-text').indexOf(state.q) !== -1);
+      el.hidden = !ok;
+      if (ok && el.tagName === 'ARTICLE') cards += 1; else if (ok) rows += 1;
+    });
+    shown = cards;
+    document.getElementById('no-match-row').hidden = rows > 0;
+    document.getElementById('no-match-cards').hidden = cards > 0;
+    document.getElementById('filter-count').textContent = 'Showing ' + shown + ' of ' + total;
+    document.querySelectorAll('.fbtn').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-filter') === state.filter)); });
+    if (keepAddress) return; // Opened from a link such as #test-37, or with no filter: leave the address as it is.
+    var hash = (state.filter !== 'all' ? 'filter=' + state.filter : '') + (state.q ? (state.filter !== 'all' ? '&' : '') + 'q=' + encodeURIComponent(state.q) : '');
+    history.replaceState(null, '', hash ? '#' + hash : location.pathname + location.search);
+  }
+  function read() {
+    var h = new URLSearchParams(location.hash.slice(1));
+    state.filter = ['fail', 'pass', 'skip'].indexOf(h.get('filter')) !== -1 ? h.get('filter') : 'all';
+    state.q = (h.get('q') || '').toLowerCase();
+    box.value = state.q;
+  }
+  document.querySelectorAll('[data-filter]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      state.filter = b.getAttribute('data-filter'); apply();
+      if (b.classList.contains('tile')) document.querySelector('.filters').scrollIntoView({ behavior: 'smooth' });
+    });
+  });
+  box.addEventListener('input', function () { state.q = box.value.trim().toLowerCase(); apply(); });
+  if (/^#test-\\d+$/.test(location.hash)) { apply(true); return; } // A link to one test: show everything, keep the link.
+  read(); apply(!location.hash);
+})();
 // Tooltip for the trend chart columns (mouse hover and keyboard focus).
 (function () {
   var tip = document.getElementById('tip');
@@ -434,7 +497,7 @@ console.log(`Dashboard generated at ${path.join(outputDir, 'index.html')} (${pas
     `## Cinescape CMS tests: ${passed}/${total} passed${failed ? `, ${failed} failed` : ''}${skipped ? `, ${skipped} skipped` : ''}`,
     '',
     `**Run** #${md(run.number)} · **commit** \`${md(run.commit)}\` ${md(run.commitMessage)} · **by** ${md(run.author)} · **trigger** ${md(run.trigger)}  `,
-    `**App** ${md(run.site)} · **Driver** ${md(run.browser)} · **Node** ${md(run.node)} · **Playwright** ${md(run.playwright)} · **Duration** ${secs(run.wallMs)}  `,
+    `**Site** ${md(run.site)} · **Browser** ${md(run.browser)} · **Node** ${md(run.node)} · **Playwright** ${md(run.playwright)} · **Duration** ${secs(run.wallMs)}  `,
     `**Pass-rate trend** (oldest → newest): ${history.slice(-10).map((h) => `${h.total ? Math.round((h.passed / h.total) * 100) : 0}%`).join(' → ')}  `,
     pagesUrl ? `**Dashboard (screenshots & videos):** ${pagesUrl}` : '',
     '',
