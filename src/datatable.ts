@@ -16,7 +16,11 @@ export class DataTable {
 
   constructor(readonly page: Page, scope: Locator | Page = page) {
     this.wrapper = scope.locator('.dataTables_wrapper').first();
-    this.table = this.wrapper.locator('table:not(.dataTables_scrollHead table):not(.dataTables_scrollFoot table)').first();
+    // Some reports (e.g. Booking Summary) show a plain table, not a DataTables list: then that table is used.
+    this.table = this.wrapper
+      .locator('table:not(.dataTables_scrollHead table):not(.dataTables_scrollFoot table)')
+      .or(scope.locator('table.table').filter({ visible: true }))
+      .first();
     this.head = this.wrapper.locator('thead').first();
     // DataTables shows one "No data / No matching records" row with a single cell when empty.
     this.rows = this.table.locator('tbody tr:not(:has(td.dataTables_empty))');

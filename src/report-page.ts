@@ -32,18 +32,28 @@ export class ReportPage extends ListPage {
    */
   async widenDates(days = 30): Promise<void> {
     const from = this.page.locator('#start, [name="start"]').first();
+    const to = this.page.locator('#end, [name="end"]').first();
     if (!(await from.count())) return;
-    const value = await from.inputValue();
-    if (!value) return;
-    const d = new Date(Date.now() - days * 86_400_000);
     const pad = (n: number) => String(n).padStart(2, '0');
+    const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const set = (field: typeof from, v: string) =>
+      field.evaluate((el: HTMLInputElement, value) => {
+        el.value = value;
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      }, v);
+    const value = await from.inputValue();
+    const start = new Date(Date.now() - days * 86_400_000);
+    if (!value) {
+      // Food and Beverages, Cancellations: From / To start empty (date only, YYYY-MM-DD) and Submit without them is
+      // refused with "Invalid date format.": fill both. The Refund page has no date range by default: leave it.
+      if (/refund\/break_transactions/.test(this.target.path)) return;
+      await set(from, ymd(start));
+      if (await to.count()) await set(to, ymd(new Date()));
+      return;
+    }
     // Keep the field's own format, e.g. "2026-10-10 06:00" (date + time) or "2026-10-10".
-    const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
     const time = value.match(/\s(\d{1,2}:\d{2}(:\d{2})?)$/)?.[1];
-    await from.evaluate((el: HTMLInputElement, v) => {
-      el.value = v;
-      el.dispatchEvent(new Event('change', { bubbles: true }));
-    }, time ? `${date} ${time}` : date);
+    await set(from, time ? `${ymd(start)} ${time}` : ymd(start));
   }
 
   /** "No records found" message shown instead of a results table. */
@@ -55,7 +65,9 @@ export class ReportPage extends ListPage {
   async submit(): Promise<void> {
     await this.submitButton().click();
     await this.page.waitForLoadState('networkidle');
-    await expect(this.table.table.or(this.noRecords()).first(), 'results table or "No records found"').toBeVisible({ timeout: 120_000 });
+    const refused = this.page.getByText(/invalid date format|please select|is required/i).first();
+    await expect(this.table.table.or(this.noRecords()).or(refused).first(), 'results table or "No records found"').toBeVisible({ timeout: 120_000 });
+    if (await refused.isVisible()) throw new Error(`The CMS refused the filters: "${((await refused.textContent()) ?? '').trim()}"`);
   }
 
   /** The search found records (a results table with rows). */

@@ -70,7 +70,11 @@ export class ListPage {
   /** Every row shown contains `value` (and there is at least one). */
   async expectRowsContain(value: string): Promise<void> {
     expect(await this.table.rows.count(), `rows matching "${value}"`).toBeGreaterThan(0);
-    for (const row of await this.table.rows.allTextContents()) expect(row.toLowerCase()).toContain(value.toLowerCase());
+    // The list's search matches every word on its own (anywhere in the row), e.g. "Stevan Stevan" also finds "Jonathan Stevan".
+    const words = value.toLowerCase().split(/\s+/).filter(Boolean);
+    for (const row of await this.table.rows.allTextContents()) {
+      for (const word of words) expect(row.toLowerCase(), `row contains "${word}"`).toContain(word);
+    }
   }
 
   /** No rows and "No matching records found". */

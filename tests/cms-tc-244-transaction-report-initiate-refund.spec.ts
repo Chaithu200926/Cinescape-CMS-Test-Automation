@@ -34,7 +34,7 @@ test('CMS-TC-244 Transaction Report – Initiate refund', sheet('CMS-TC-244'), a
     await cms.waitForLoadState('networkidle').catch(() => {});
   });
   await step('Check the answer is not an error (manual checklist: "error showing")', async () => {
-    expect(cms.dialogs.messages.at(-1)).not.toMatch(/error|fail/i);
+    expect(cms.dialogs.messages.at(-1)).not.toMatch(/error|fail|not refunded|try again/i);
   });
   await step('Press Submit again', () => report.submit());
   await step(`Check transaction ${id} shows a refund status`, async () => {
