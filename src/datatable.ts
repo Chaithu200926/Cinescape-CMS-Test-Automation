@@ -19,7 +19,8 @@ export class DataTable {
     // Some reports (e.g. Booking Summary) show a plain table, not a DataTables list: then that table is used.
     this.table = this.wrapper
       .locator('table:not(.dataTables_scrollHead table):not(.dataTables_scrollFoot table)')
-      .or(scope.locator('table.table').filter({ visible: true }))
+      // (not the header / footer copy DataTables makes of a side-scrolling table: it has no rows)
+      .or(scope.locator('table.table:not(.dataTables_wrapper table)').filter({ visible: true }))
       .first();
     this.head = this.wrapper.locator('thead').first();
     // DataTables shows one "No data / No matching records" row with a single cell when empty.
