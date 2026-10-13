@@ -3,7 +3,7 @@
 // the final screen to every test (the dashboard shows it).
 import { test as base, expect, type Page, type TestDetails } from '@playwright/test';
 import { config } from './config';
-import { allCases } from './extra-cases';
+import { cmsCases } from './test-cases';
 import { signIn } from './sign-in';
 
 /** Answers the CMS's confirm() boxes ('accept' unless a test says otherwise) and keeps every alert / confirm text. */
@@ -64,8 +64,8 @@ export { expect };
 
 /** The case's sheet steps, expected result and manual-checklist remark, shown with the test; tagged with its menu. */
 export function sheet(id: string): TestDetails {
-  const c = allCases.find((x) => x.id === id);
-  if (!c) throw new Error(`${id} is not in src/test-cases.ts or src/extra-cases.ts.`);
+  const c = cmsCases.find((x) => x.id === id);
+  if (!c) throw new Error(`${id} is not in src/test-cases.ts (CMS_Test_Cases.xlsx).`);
   return {
     tag: `@${c.menu.replace(/[^a-z0-9]+/gi, '-')}`,
     annotation: [

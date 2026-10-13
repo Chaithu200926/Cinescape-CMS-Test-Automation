@@ -92,8 +92,7 @@ times. A refused sign-in stops at once and is not retried.
 | [`src/report-page.ts`](src/report-page.ts) | Reports: Submit, results, empty fields, Download and reading the export, Reset. |
 | [`src/cms-forms.ts`](src/cms-forms.ts) | Add/Edit form fields per page, and whether its records can be deleted. |
 | [`src/cms-pages.ts`](src/cms-pages.ts) | Every CMS page by name: URL, heading, report columns that must be filled. |
-| [`src/test-cases.ts`](src/test-cases.ts) | The cases of the sheet (generated from it; do not edit by hand). |
-| [`src/extra-cases.ts`](src/extra-cases.ts) | CMS-TC-245..250 from the manual checklist. |
+| [`src/test-cases.ts`](src/test-cases.ts) | The 250 cases of the sheet, with its detailed steps (generated from it; do not edit by hand). |
 | [`src/fixtures.ts`](src/fixtures.ts) | `cms` (signed-in page, server/script errors, confirm boxes), `step()` with screenshot, `finding()`. |
 | [`src/sign-in.ts`](src/sign-in.ts), [`src/global-setup.ts`](src/global-setup.ts) | Sign-in (one attempt) and the session reused by all tests. |
 | [`src/datatable.ts`](src/datatable.ts), [`src/test-image.ts`](src/test-image.ts), [`src/config.ts`](src/config.ts) | DataTables helpers, PNG files for uploads, settings from `.env`. |
