@@ -17,3 +17,5 @@ dashboard-*/
 inspect/
 # Secrets: CMS admin account. Never commit this file.
 .env
+# Results kept for building the RCA workbook (scripts/build-rca.py).
+.rca-inputs/
