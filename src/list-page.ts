@@ -137,7 +137,9 @@ export class ListPage {
 
   /** The cells of the column are in `direction` order. */
   async expectColumnOrder(column: { index: number }, direction: 'asc' | 'desc'): Promise<void> {
-    expect(isSorted((await this.table.cellTexts(column.index)).map(sortKey), direction), `column sorted ${direction === 'asc' ? 'A→Z' : 'Z→A'}`).toBe(true);
+    // Empty placeholders ("", "-", "—", null) are left out: the list puts them first or last by its own rule.
+    const values = (await this.table.cellTexts(column.index)).filter((v) => !/^\s*([-–—]|null)?\s*$/i.test(v));
+    expect(isSorted(values.map(sortKey), direction), `column sorted ${direction === 'asc' ? 'A→Z' : 'Z→A'}`).toBe(true);
   }
 
   /** Every sortable column header shows a sort icon (manual checklist: "Sort icon not showing"). */
