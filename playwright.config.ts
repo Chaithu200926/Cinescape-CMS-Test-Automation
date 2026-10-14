@@ -1,13 +1,15 @@
-// Playwright settings for the Cinescape CMS (back office) tests.
+// Playwright settings for the Cinescape CMS (back office) tests on UAT (http://10.35.1.66:8092).
+// The same tests run on UAT (internal) and Pre-UAT with playwright.uat-internal.config.ts / playwright.pre-uat.config.ts.
+import path from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
 import { config } from './src/config';
 
 export default defineConfig({
-  // Test files live in tests/, one per CMS menu.
+  // Test files live in tests/, one per CMS-TC case.
   testDir: './tests',
   // Sign in once and reuse the session in every test.
   globalSetup: './src/global-setup.ts',
-  outputDir: 'test-results/artifacts',
+  outputDir: path.join(config.resultsDir, 'artifacts'),
   // One admin account: tests run one at a time so they never edit the same page together.
   fullyParallel: false,
   workers: 1,
@@ -17,9 +19,9 @@ export default defineConfig({
   expect: { timeout: 20_000 },
   reporter: [
     ['list'],
-    ['html', { open: 'never', outputFolder: 'playwright-report' }],
-    ['json', { outputFile: 'test-results/results.json' }],
-    ['junit', { outputFile: 'test-results/results.xml' }],
+    ['html', { open: 'never', outputFolder: config.reportDir }],
+    ['json', { outputFile: path.join(config.resultsDir, 'results.json') }],
+    ['junit', { outputFile: path.join(config.resultsDir, 'results.xml') }],
   ],
   use: {
     ...devices['Desktop Chrome'],

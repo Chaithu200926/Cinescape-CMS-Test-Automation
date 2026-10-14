@@ -1,7 +1,19 @@
 # Cinescape CMS Automation
 
-End-to-end browser tests for the **Cinescape CMS** (back office) on UAT, `http://10.35.1.66:8092`, written with
-[Playwright](https://playwright.dev) and TypeScript. This is a separate project, set up like the Web, Kiosk and
+End-to-end browser tests for the **Cinescape CMS** (back office), written with [Playwright](https://playwright.dev)
+and TypeScript. The **same 250 tests** run on three environments:
+
+| Environment | Address | Run | Results / report / dashboard |
+|---|---|---|---|
+| UAT | `http://10.35.1.66:8092` | `npm test` (or `npm run test:uat`) | `test-results/`, `playwright-report/`, `dashboard/` |
+| UAT (internal) | `http://10.35.1.66:8102` | `npm run test:uat-internal` | `test-results-uat-internal/`, `playwright-report-uat-internal/`, `dashboard-uat-internal/` |
+| Pre-UAT | `http://10.35.1.66:8122` | `npm run test:pre-uat` | `test-results-pre-uat/`, `playwright-report-pre-uat/`, `dashboard-pre-uat/` |
+
+The environment comes from `CMS_ENV` ([`src/config.ts`](src/config.ts)), set by `playwright.uat-internal.config.ts` /
+`playwright.pre-uat.config.ts`. Each environment has its own sign-in session (`.auth/state-<env>.json`) and may have
+its own account in `.env` (`CMS_USERNAME_UAT_INTERNAL`, `CMS_USERNAME_PRE_UAT`, ...; otherwise the UAT one is used).
+UAT (internal) still has the older CMS pages (Login button, no Light / Dark switch, Summernote editors): the tests
+handle both. This is a separate project, set up like the Web, Kiosk and
 Android projects next to it.
 
 The CMS is reachable from the **office network only**, so the tests run on the QA PC, not on GitHub's cloud runners.
@@ -58,7 +70,7 @@ CMS-TC-044 (Prepare food) is deferred in the sheet and skipped.
 cd CinescapeCMS-Automation
 npm ci
 npx playwright install chromium
-copy .env.example .env      # then fill in CMS_USERNAME / CMS_PASSWORD
+copy .env.example .env      # then fill in CMS_USERNAME / CMS_PASSWORD (and the _UAT_INTERNAL / _PRE_UAT ones)
 ```
 
 ## Run
@@ -68,9 +80,11 @@ npm test                                          # all 250 cases
 npx playwright test tests/cms-tc-003              # one case
 npx playwright test --grep @Reports               # one menu (tags: @Dashboard @User-Management @Configurations
                                                   #   @Movies-Cinemas @Offers-and-Banners @Reports @Refund)
+npm run test:pre-uat -- tests/cms-tc-003          # one case on another environment
 npm run dashboard                                 # dashboard/index.html: filter Passed / Failed, screenshots, videos
-npm run report                                    # Playwright HTML report
-npm run probe                                     # save every page and Add form to inspect/ (for new specs)
+npm run dashboard:pre-uat                         # dashboard-pre-uat/index.html (also dashboard:uat-internal)
+npm run report                                    # Playwright HTML report (also report:pre-uat, report:uat-internal)
+npm run probe                                     # save every page and Add form to inspect/uat (CMS_ENV=pre-uat ... for others)
 ```
 
 Every test is **recorded on video** and every step has a **screenshot** (taken at the end of the step, also when it

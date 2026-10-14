@@ -8,7 +8,8 @@ import { pages } from '../src/cms-pages';
 import { recordForms } from '../src/cms-forms';
 import { config } from '../src/config';
 
-const out = path.join(__dirname, '..', 'inspect');
+// One folder per CMS environment: inspect/uat, inspect/uat-internal, inspect/pre-uat (CMS_ENV, see src/config.ts).
+const out = path.join(__dirname, '..', 'inspect', config.env);
 
 test('probe CMS pages and Add forms', async ({ page }) => {
   fs.mkdirSync(out, { recursive: true });

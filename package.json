@@ -15,10 +15,17 @@
   "private": true,
   "scripts": {
     "test": "playwright test",
+    "test:uat": "playwright test",
+    "test:uat-internal": "playwright test -c playwright.uat-internal.config.ts",
+    "test:pre-uat": "playwright test -c playwright.pre-uat.config.ts",
     "test:headed": "playwright test --headed",
     "report": "playwright show-report",
+    "report:uat-internal": "playwright show-report playwright-report-uat-internal",
+    "report:pre-uat": "playwright show-report playwright-report-pre-uat",
     "probe": "playwright test --config scripts/probe.config.ts",
     "dashboard": "node scripts/generate-dashboard.js",
+    "dashboard:uat-internal": "node -e \"process.env.CMS_ENV='uat-internal';require('./scripts/generate-dashboard.js')\"",
+    "dashboard:pre-uat": "node -e \"process.env.CMS_ENV='pre-uat';require('./scripts/generate-dashboard.js')\"",
     "typecheck": "tsc -p tsconfig.json"
   },
   "devDependencies": {

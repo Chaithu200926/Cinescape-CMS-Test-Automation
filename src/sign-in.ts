@@ -12,12 +12,13 @@ export async function signIn(page: Page): Promise<void> {
   });
   await page.locator('#username').fill(config.username);
   await page.locator('#password').fill(config.password);
-  await page.getByRole('button', { name: 'Sign in' }).click();
+  // "Sign in" on UAT and Pre-UAT; "Login" on UAT (internal), which still has the older sign-in page.
+  await page.locator('form').filter({ has: page.locator('#password') }).getByRole('button', { name: /^\s*(sign in|login)\s*$/i }).click();
   await page.waitForLoadState('networkidle');
   // A failed sign-in stays on /login and shows "Sign-in did not work ... Bad credentials".
   if (/\/login/.test(page.url())) {
-    const message = (await page.locator('#errorMsg').textContent().catch(() => ''))?.trim().replace(/\s+/g, ' ');
-    throw new Error(`CMS sign-in failed for CMS_USERNAME in .env: ${message || page.url()}. Not retrying, so the account is not locked.`);
+    const message = (await page.locator('#errorMsg, .alert-danger').first().textContent({ timeout: 5_000 }).catch(() => ''))?.trim().replace(/\s+/g, ' ');
+    throw new Error(`CMS sign-in failed on ${config.envName} (${config.baseUrl}) for the username in .env: ${message || page.url()}. Not retrying, so the account is not locked.`);
   }
   fs.mkdirSync(path.dirname(config.storageState), { recursive: true });
   await page.context().storageState({ path: config.storageState });

@@ -10,9 +10,24 @@ const { execSync } = require('child_process');
 const root = path.join(__dirname, '..');
 require('dotenv').config({ path: path.join(root, '.env'), quiet: true });
 
+// The CMS environment of the run (CMS_ENV: uat, uat-internal or pre-uat; set by npm run dashboard:<env>).
+// UAT uses the plain folder names, the others a suffix: test-results-pre-uat -> dashboard-pre-uat.
+const ENVIRONMENTS = {
+  uat: { name: 'UAT', url: 'http://10.35.1.66:8092' },
+  'uat-internal': { name: 'UAT (internal)', url: 'http://10.35.1.66:8102' },
+  'pre-uat': { name: 'Pre-UAT', url: 'http://10.35.1.66:8122' },
+};
+const cmsEnv = process.env.CMS_ENV || 'uat';
+if (!ENVIRONMENTS[cmsEnv]) throw new Error(`CMS_ENV "${cmsEnv}" is not one of ${Object.keys(ENVIRONMENTS).join(', ')}.`);
+const envName = ENVIRONMENTS[cmsEnv].name;
+const named = (folder) => path.join(root, cmsEnv === 'uat' ? folder : `${folder}-${cmsEnv}`);
+const envSuffix = cmsEnv.toUpperCase().replace(/-/g, '_');
+const cmsUrl = process.env[`CMS_URL_${envSuffix}`] || (cmsEnv === 'uat' ? process.env.CMS_URL : '') || ENVIRONMENTS[cmsEnv].url;
+
 // Input (Playwright JSON results), output folder, screenshot/video folder and run history.
-const resultsPath = path.join(root, 'test-results', 'results.json');
-const outputDir = path.join(root, 'dashboard');
+// RESULTS_FILE: another results file, e.g. a full run merged with re-runs of single cases.
+const resultsPath = process.env.RESULTS_FILE ? path.resolve(process.env.RESULTS_FILE) : path.join(named('test-results'), 'results.json');
+const outputDir = named('dashboard');
 const assetDir = path.join(outputDir, 'assets');
 // On GitHub the workflow restores the history from its cache and points HISTORY_FILE at it.
 const historyPath = process.env.HISTORY_FILE || path.join(outputDir, 'history.json');
@@ -176,7 +191,7 @@ const run = {
   node: process.version,
   playwright: pkgVersion('@playwright/test'),
   browser: [...new Set(tests.map((t) => t.browser))].join(', ') || 'chromium',
-  site: process.env.CMS_URL || 'http://10.35.1.66:8092',
+  site: cmsUrl,
   started,
   finished: new Date(started.getTime() + wallMs),
   wallMs,
@@ -316,7 +331,7 @@ const html = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cinescape CMS Dashboard</title>
+<title>Cinescape CMS Dashboard - ${esc(envName)}</title>
 <style>
 :root { --bg:#f6f7fb; --panel:#fcfcfb; --ink:#1b2230; --muted:#5d6678; --line:#dde2ea; --code:#f1f3f8; --accent:#1f4e8c;
   --good:#0ca30c; --critical:#d03b3b; --warning:#fab219;
@@ -384,7 +399,7 @@ footer { color:var(--muted); font-size:13px; margin-top:24px; }
 </style>
 </head>
 <body><main>
-<h1>Cinescape CMS tests</h1>
+<h1>Cinescape CMS tests - ${esc(envName)}</h1>
 <p class="muted">Run ${esc(run.number)} · ${esc(when(run.started))}${run.url ? ` · <a href="${esc(run.url)}">GitHub Actions run</a>` : ''}${repoUrl ? ` · <a href="${esc(repoUrl)}">Repository</a> · <a href="${esc(repoUrl)}/actions">Actions</a>` : ''}${fs.existsSync(path.join(outputDir, 'playwright-report', 'index.html')) ? ' · <a href="playwright-report/index.html">Playwright HTML report</a>' : ''}</p>
 
 <section class="tiles">
@@ -494,7 +509,7 @@ console.log(`Dashboard generated at ${path.join(outputDir, 'index.html')} (${pas
   const trail = (id) => history.slice(-10).map((h) => emoji[h.tests[id] ? kind(h.tests[id]) : 'none']).join('');
   // Heading, run details, trend and the main results table.
   const lines = [
-    `## Cinescape CMS tests: ${passed}/${total} passed${failed ? `, ${failed} failed` : ''}${skipped ? `, ${skipped} skipped` : ''}`,
+    `## Cinescape CMS tests (${envName}): ${passed}/${total} passed${failed ? `, ${failed} failed` : ''}${skipped ? `, ${skipped} skipped` : ''}`,
     '',
     `**Run** #${md(run.number)} · **commit** \`${md(run.commit)}\` ${md(run.commitMessage)} · **by** ${md(run.author)} · **trigger** ${md(run.trigger)}  `,
     `**Site** ${md(run.site)} · **Browser** ${md(run.browser)} · **Node** ${md(run.node)} · **Playwright** ${md(run.playwright)} · **Duration** ${secs(run.wallMs)}  `,

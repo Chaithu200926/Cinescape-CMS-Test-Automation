@@ -116,8 +116,16 @@ export class RecordPage extends ListPage {
   /** Fills the whole form: fields, rich-text editors and image uploads (images in the size the form asks for). */
   async fill(values: Record<string, FieldValue>): Promise<void> {
     await this.setFields(values);
+    // Rich-text editors: Jodit on UAT / Pre-UAT, Summernote on UAT (internal), which still has the older pages and
+    // uses plain text boxes on some of them (e.g. Email/SMS Template): those are filled directly.
+    const editor = this.page.locator('.jodit-wysiwyg, .note-editable');
+    const editors = await editor.count();
     for (const [i, name] of (this.form.richText ?? []).entries()) {
-      await this.page.locator('.jodit-wysiwyg').nth(i).click();
+      if (i >= editors) {
+        await this.setFields({ [name]: `<p>Automated test text (${name}).</p>` });
+        continue;
+      }
+      await editor.nth(i).click();
       await this.page.keyboard.type(`Automated test text (${name}).`);
       // The editor copies its text into the hidden field; set it as well in case it has not yet.
       await this.page.locator(`textarea[name="${name}"]`).evaluate((t: HTMLTextAreaElement, v) => { if (!t.value.trim()) t.value = v; }, `<p>Automated test text (${name}).</p>`);
@@ -132,7 +140,7 @@ export class RecordPage extends ListPage {
    * not displaying. Have to hover mouse to understand what it is").
    */
   async expectEditorIconsShown(): Promise<void> {
-    const buttons = this.page.locator('.jodit-toolbar-button__button, .jodit-toolbar-button button');
+    const buttons = this.page.locator('.jodit-toolbar-button__button, .jodit-toolbar-button button, .note-toolbar .note-btn');
     expect(await buttons.count(), 'text editor toolbar buttons').toBeGreaterThan(0);
     const blank = await buttons.evaluateAll((bs) =>
       bs

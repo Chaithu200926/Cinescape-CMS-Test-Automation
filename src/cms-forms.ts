@@ -39,7 +39,8 @@ const tabForm = (type: 'rating' | 't&c' | 'privacy'): RecordForm => ({
   add: `/admin/tab/add/${type}`,
   // Checklist: "More type should be defaulted to" the page's own type.
   defaults: { moreType: { rating: 'RATING', 't&c': 'TNC', privacy: 'PRIVACY' }[type] },
-  values: (r) => ({ name: r.name, nameAlt: r.name, colorCode: '#123456', more_key: `AT${r.token.slice(-8)}`, priority: '99', descriptionShort: r.name, descriptionShortAlt: r.name, active: false }),
+  // More type is chosen explicitly: UAT (internal) does not preselect it, and a record of the wrong type lands in another list.
+  values: (r) => ({ name: r.name, nameAlt: r.name, moreType: { rating: 'RATING', 't&c': 'TNC', privacy: 'PRIVACY' }[type], colorCode: '#123456', more_key: `AT${r.token.slice(-8)}`, priority: '99', descriptionShort: r.name, descriptionShortAlt: r.name, active: false }),
   richText: ['description', 'descriptionAlt'],
   edit: { field: 'name', value: (r) => `${r.name} EDITED` },
   remove: 'row',

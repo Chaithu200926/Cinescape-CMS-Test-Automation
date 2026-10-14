@@ -33,12 +33,12 @@ export const pages = {
   privacyPolicy: page('Configurations › Privacy Policy', '/admin/tab/list/privacy', /privacy/i),
   countries: page('Configurations › Countries', '/admin/country/list', /countr/i),
 
-  movies: page('Movies/Cinemas › Movies', '/admin/movie/list', /movies/i),
+  movies: page('Movies/Cinemas › Movies', '/admin/movie/list', /movies|movie details/i),
   moviesPerson: page('Movies/Cinemas › Movies Person', '/admin/movie/person/list', /person/i),
   cinemas: page('Movies/Cinemas › Cinemas', '/admin/cinema/list', /cinemas/i),
   experiences: page('Movies/Cinemas › Experiences', '/admin/experiences/list', /experiences/i),
   food: page('Movies/Cinemas › Food', '/admin/food/list', /food/i),
-  foodTab: page('Movies/Cinemas › Food Tab', '/admin/foodtab/list', /food\s*tab/i),
+  foodTab: page('Movies/Cinemas › Food Tab', '/admin/foodtab/list', /foods?\s*tab/i),
   tags: page('Movies/Cinemas › Tags', '/admin/tag/list', /tag/i),
 
   offers: page('Offers and Banners › Offers', '/admin/offer/list', /offers/i),

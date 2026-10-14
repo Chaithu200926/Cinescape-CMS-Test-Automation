@@ -59,7 +59,9 @@ export class ListPage {
   /** A value of the first row (column `column`, or the first one with 3+ characters). */
   async valueFromFirstRow(column = 1): Promise<string> {
     const cells = (await this.table.cellTexts(column)).filter((x) => x.length >= 3);
-    const value = cells[0] ?? (await this.table.cellTexts(0))[0];
+    // Some reports have empty first columns (e.g. Kiosk Transaction Report on UAT internal): any filled cell of row 1.
+    const anyCell = async () => (await this.table.rows.first().locator('td').allTextContents()).map((t) => t.trim()).find((t) => t.length >= 3 && !/^(null|undefined)$/i.test(t));
+    const value = cells[0] ?? (await anyCell());
     expect(value, 'a value to search for').toBeTruthy();
     return value;
   }
