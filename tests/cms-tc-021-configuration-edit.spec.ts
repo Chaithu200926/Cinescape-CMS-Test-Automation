@@ -15,7 +15,7 @@ test('CMS-TC-021 Configuration – Edit', sheet('CMS-TC-021'), async ({ cms, ste
     await step('Check the test record is in the list', () => records.expectInList(record.token));
     const editUrl = await step('Click Edit on the test record', () => records.openEdit(record.token));
     await step('Check the Edit form shows the saved data (manual checklist: "No data populating in edit")', () => records.expectEditShows(records.values(record)));
-    await step('Check every multi-line box shows at least 8 lines of text', () => records.expectTextBoxesReadable(8));
+    await step('Check every multi-line box is big enough to read (8 lines; 3 for short fields)', () => records.expectTextBoxesReadable());
     await step(`Clear the required field "${field}"`, () => records.setFields({ [field]: '' }));
     const before = await step('Press Submit', () => records.pressSubmit());
     await step('Check the form is refused', () => records.expectRefused(before, `"${field}" empty`));

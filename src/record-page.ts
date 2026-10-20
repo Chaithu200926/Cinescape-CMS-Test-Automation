@@ -17,6 +17,19 @@ import { testImage } from './test-image';
  */
 const delkeyScriptError = /^script error: Cannot set properties of null \(setting 'href'\)$/;
 
+/**
+ * Short multi-line fields (field names): at least 3 visible lines. Every other multi-line box (descriptions, answers,
+ * terms, e-mail body) needs at least 8 lines.
+ */
+export const SHORT_TEXT_BOXES = [
+  'descriptionShort', 'descriptionShortAlt', // Ratings / T&C / Privacy Policy: Description Short (+ Arabic)
+  'sTemplate', // Email/SMS Template: SMS body
+  'ques', 'ques_ar', // FAQ: Question (+ Arabic)
+  'shortText', 'shortTextAlt', // Offers: Short Description (+ Arabic)
+  'configValue', 'configDescription', // Configuration: Value, Description
+  'binSeries', // Bank Offers: Bin Series
+];
+
 export class RecordPage extends ListPage {
   constructor(page: Cms, target: CmsPage) {
     super(page, target);
@@ -155,11 +168,12 @@ export class RecordPage extends ListPage {
   }
 
   /**
-   * Every multi-line box of the open form (rich-text editors and multi-line text boxes) shows at least `minLines`
-   * lines, so the text entered can be read without scrolling inside a tiny box. Soft check: every box is reported.
-   * A table of all boxes (visible lines, size, how much of the text fits) is attached to the test.
+   * Every multi-line box of the open form (rich-text editors and multi-line text boxes) shows enough lines to read the
+   * text without scrolling inside a tiny box: 8 lines for descriptions, answers and terms, 3 for the short fields in
+   * SHORT_TEXT_BOXES (agreed with the QA team, 20 Oct 2026). Soft check: every box is reported. A table of all boxes
+   * (visible lines, minimum, size, how much of the saved text fits) is attached to the test.
    */
-  async expectTextBoxesReadable(minLines = 8): Promise<void> {
+  async expectTextBoxesReadable(): Promise<void> {
     const boxes = await this.page.evaluate(() => {
       const visible = (el: Element) => {
         const r = el.getBoundingClientRect();
@@ -192,12 +206,14 @@ export class RecordPage extends ListPage {
         };
       });
     });
+    const minimum = (name: string) => (SHORT_TEXT_BOXES.includes(name) ? 3 : 8);
     const table = boxes.length
-      ? ['Box | editor | visible lines | height px | width px | saved text fits', ...boxes.map((b) => `${b.box} | ${b.editor} | ${b.lines} | ${b.height} | ${b.width} | ${b.textFits}`)].join('\n')
+      ? ['Box | field | editor | visible lines | minimum | height px | width px | saved text fits', ...boxes.map((b) => `${b.box} | ${b.name} | ${b.editor} | ${b.lines} | ${minimum(b.name)} | ${b.height} | ${b.width} | ${b.textFits}`)].join('\n')
       : '(no multi-line boxes on this form)';
     await test.info().attach('text box sizes', { body: table, contentType: 'text/plain' });
     for (const b of boxes) {
-      expect.soft(b.lines, `"${b.box}" shows ${b.lines} lines (${b.height} px high); minimum is ${minLines} lines`).toBeGreaterThanOrEqual(minLines);
+      const min = minimum(b.name);
+      expect.soft(b.lines, `"${b.box}" shows ${b.lines} lines (${b.height} px high); minimum is ${min} lines`).toBeGreaterThanOrEqual(min);
     }
   }
 

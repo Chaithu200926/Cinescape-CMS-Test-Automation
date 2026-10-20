@@ -15,7 +15,7 @@ test('CMS-TC-049 Email/SMS Template – Edit', sheet('CMS-TC-049'), async ({ cms
     await step('Check the test record is in the list', () => records.expectInList(record.token));
     const editUrl = await step('Click Edit on the test record', () => records.openEdit(record.token));
     await step('Check the Edit form shows the saved data (manual checklist: "No data populating in edit")', () => records.expectEditShows(records.values(record)));
-    await step('Check every multi-line box shows at least 8 lines of text', () => records.expectTextBoxesReadable(8));
+    await step('Check every multi-line box is big enough to read (8 lines; 3 for short fields)', () => records.expectTextBoxesReadable());
     await step(`Change "${field}" to "${newValue}"`, () => records.setFields({ [field]: newValue }));
     await step('Press Submit: the CMS saves the change and leaves the form', () => records.submit());
     await step('Check the list shows the new value', async () => {

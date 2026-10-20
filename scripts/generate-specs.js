@@ -302,7 +302,7 @@ function writeBody(a, c, v) {
       const openAdd = `  await step(${q(`Open ${name}`)}, () => records.open());
   await step('Click the Add button', () => records.clickAdd());
   await step('Check the Add form is shown', () => records.expectAddFormOpen());
-  await step('Check every multi-line box shows at least 8 lines of text', () => records.expectTextBoxesReadable(8));`;
+  await step('Check every multi-line box is big enough to read (8 lines; 3 for short fields)', () => records.expectTextBoxesReadable());`;
       const refused = `  const before = await step('Press Submit with the required fields empty', () => records.pressSubmit());
   await step('Check the form is refused and the required fields are flagged', () => records.expectRefused(before, 'Required fields empty'));`;
       if (validateOnly.has(name)) {
@@ -346,7 +346,7 @@ ${refused}
   const newValue = records.form.edit.value(record);`, leftovers, '  try {', createSteps(),
         `    const editUrl = await step('Click Edit on the test record', () => records.openEdit(record.token));
     await step('Check the Edit form shows the saved data (manual checklist: "No data populating in edit")', () => records.expectEditShows(records.values(record)));
-    await step('Check every multi-line box shows at least 8 lines of text', () => records.expectTextBoxesReadable(8));`];
+    await step('Check every multi-line box is big enough to read (8 lines; 3 for short fields)', () => records.expectTextBoxesReadable());`];
       if (required) {
         lines.push(`    await step(\`Clear the required field "\${field}"\`, () => records.setFields({ [field]: '' }));
     const before = await step('Press Submit', () => records.pressSubmit());
@@ -414,7 +414,7 @@ function existingBody(c, v, name) {
   const records = new RecordPage(cms, pages.${v});
   const url = await step(${q(`Open ${name} and take the first record's Edit link`)}, () => records.firstEditUrl());
   const original = await step('Open its Edit form and note the current ${label}', () => records.readField(url, '${field}'));
-  await step('Check every multi-line box shows at least 8 lines of text', () => records.expectTextBoxesReadable(8));
+  await step('Check every multi-line box is big enough to read (8 lines; 3 for short fields)', () => records.expectTextBoxesReadable());
   const changed = ${change};
   await test.info().attach('record edited', { body: \`\${url}\\n${field} = "\${original}" (put back afterwards)\`, contentType: 'text/plain' });${foodTab ? `
   const imagesBefore = await step('Note the tab images shown in the list', () => records.rowImagesLoaded(url));` : ''}
