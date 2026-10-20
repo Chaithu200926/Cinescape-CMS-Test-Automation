@@ -11,7 +11,7 @@ test('CMS-TC-092 Privacy Policy – Add', sheet('CMS-TC-092'), async ({ cms, ste
   await step('Open Configurations › Privacy Policy', () => records.open());
   await step('Click the Add button', () => records.clickAdd());
   await step('Check the Add form is shown', () => records.expectAddFormOpen());
-  await step('Check every multi-line box is big enough to read (8 lines; 3 for short fields)', () => records.expectTextBoxesReadable());
+  await step('Check every multi-line box has a readable size (long text 8-25 lines, short fields 3-10)', () => records.expectTextBoxesReadable());
   await step('Check More type is preselected as PRIVACY (manual checklist)', async () => {
     await expect.soft(records.field('moreType')).toHaveValue('PRIVACY');
   });

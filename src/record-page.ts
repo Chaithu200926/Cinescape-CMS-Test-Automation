@@ -18,9 +18,16 @@ import { testImage } from './test-image';
 const delkeyScriptError = /^script error: Cannot set properties of null \(setting 'href'\)$/;
 
 /**
- * Short multi-line fields (field names): at least 3 visible lines. Every other multi-line box (descriptions, answers,
- * terms, e-mail body) needs at least 8 lines.
+ * Allowed visible size of a multi-line box, in lines (agreed with the QA team, 20 Oct 2026): long text (descriptions,
+ * answers, terms, e-mail body) 8-25 lines; the short fields of SHORT_TEXT_BOXES 3-10 lines. Below the minimum the
+ * text cannot be read without scrolling inside the box; above the maximum the box is out of proportion.
  */
+export const TEXT_BOX_LINES = {
+  long: { min: 8, max: 25 },
+  short: { min: 3, max: 10 },
+};
+
+/** Short multi-line fields (field names); every other multi-line box counts as long text. */
 export const SHORT_TEXT_BOXES = [
   'descriptionShort', 'descriptionShortAlt', // Ratings / T&C / Privacy Policy: Description Short (+ Arabic)
   'sTemplate', // Email/SMS Template: SMS body
@@ -168,10 +175,10 @@ export class RecordPage extends ListPage {
   }
 
   /**
-   * Every multi-line box of the open form (rich-text editors and multi-line text boxes) shows enough lines to read the
-   * text without scrolling inside a tiny box: 8 lines for descriptions, answers and terms, 3 for the short fields in
-   * SHORT_TEXT_BOXES (agreed with the QA team, 20 Oct 2026). Soft check: every box is reported. A table of all boxes
-   * (visible lines, minimum, size, how much of the saved text fits) is attached to the test.
+   * Every multi-line box of the open form (rich-text editors and multi-line text boxes) is within its allowed size
+   * (TEXT_BOX_LINES): not so small that the text needs scrolling inside a tiny box, not out of proportion. Soft check:
+   * every box is reported. A table of all boxes (visible lines, allowed range, size, whether the saved text fits) is
+   * attached to the test.
    */
   async expectTextBoxesReadable(): Promise<void> {
     const boxes = await this.page.evaluate(() => {
@@ -206,14 +213,16 @@ export class RecordPage extends ListPage {
         };
       });
     });
-    const minimum = (name: string) => (SHORT_TEXT_BOXES.includes(name) ? 3 : 8);
+    const limits = (name: string) => (SHORT_TEXT_BOXES.includes(name) ? TEXT_BOX_LINES.short : TEXT_BOX_LINES.long);
     const table = boxes.length
-      ? ['Box | field | editor | visible lines | minimum | height px | width px | saved text fits', ...boxes.map((b) => `${b.box} | ${b.name} | ${b.editor} | ${b.lines} | ${minimum(b.name)} | ${b.height} | ${b.width} | ${b.textFits}`)].join('\n')
+      ? ['Box | field | editor | visible lines | allowed lines | height px | width px | saved text fits', ...boxes.map((b) => `${b.box} | ${b.name} | ${b.editor} | ${b.lines} | ${limits(b.name).min}-${limits(b.name).max} | ${b.height} | ${b.width} | ${b.textFits}`)].join('\n')
       : '(no multi-line boxes on this form)';
     await test.info().attach('text box sizes', { body: table, contentType: 'text/plain' });
     for (const b of boxes) {
-      const min = minimum(b.name);
-      expect.soft(b.lines, `"${b.box}" shows ${b.lines} lines (${b.height} px high); minimum is ${min} lines`).toBeGreaterThanOrEqual(min);
+      const { min, max } = limits(b.name);
+      const size = `"${b.box}" shows ${b.lines} lines (${b.height} px high); allowed is ${min}-${max} lines`;
+      expect.soft(b.lines, `${size}: too small`).toBeGreaterThanOrEqual(min);
+      expect.soft(b.lines, `${size}: too large`).toBeLessThanOrEqual(max);
     }
   }
 

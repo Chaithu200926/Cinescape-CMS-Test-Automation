@@ -9,7 +9,7 @@ test('CMS-TC-171 Bank Offers – Edit', sheet('CMS-TC-171'), async ({ cms, step 
   const records = new RecordPage(cms, pages.bankOffers);
   const url = await step('Open Offers and Banners › Bank Offers and take the first record\'s Edit link', () => records.firstEditUrl());
   const original = await step('Open its Edit form and note the current Header', () => records.readField(url, 'header'));
-  await step('Check every multi-line box is big enough to read (8 lines; 3 for short fields)', () => records.expectTextBoxesReadable());
+  await step('Check every multi-line box has a readable size (long text 8-25 lines, short fields 3-10)', () => records.expectTextBoxesReadable());
   const changed = `${original} AUTOTEST`;
   await test.info().attach('record edited', { body: `${url}\nheader = "${original}" (put back afterwards)`, contentType: 'text/plain' });
   try {

@@ -9,7 +9,7 @@ test('CMS-TC-028 Seat Category – Edit', sheet('CMS-TC-028'), async ({ cms, ste
   const records = new RecordPage(cms, pages.seatCategory);
   const url = await step('Open Configurations › Seat Category and take the first record\'s Edit link', () => records.firstEditUrl());
   const original = await step('Open its Edit form and note the current Seat Type Alt', () => records.readField(url, 'subcatalt'));
-  await step('Check every multi-line box is big enough to read (8 lines; 3 for short fields)', () => records.expectTextBoxesReadable());
+  await step('Check every multi-line box has a readable size (long text 8-25 lines, short fields 3-10)', () => records.expectTextBoxesReadable());
   const changed = `${original} AUTOTEST`;
   await test.info().attach('record edited', { body: `${url}\nsubcatalt = "${original}" (put back afterwards)`, contentType: 'text/plain' });
   try {
