@@ -11,6 +11,7 @@ test('CMS-TC-048 Email/SMS Template – Add', sheet('CMS-TC-048'), async ({ cms,
   await step('Open Configurations › Email/SMS Template', () => records.open());
   await step('Click the Add button', () => records.clickAdd());
   await step('Check the Add form is shown', () => records.expectAddFormOpen());
+  await step('Check every multi-line box shows at least 8 lines of text', () => records.expectTextBoxesReadable(8));
   const before = await step('Press Submit with the required fields empty', () => records.pressSubmit());
   await step('Check the form is refused and the required fields are flagged', () => records.expectRefused(before, 'Required fields empty'));
   try {

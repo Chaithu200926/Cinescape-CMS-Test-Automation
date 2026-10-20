@@ -9,6 +9,7 @@ test('CMS-TC-147 Food Tab – Edit', sheet('CMS-TC-147'), async ({ cms, step }) 
   const records = new RecordPage(cms, pages.foodTab);
   const url = await step('Open Movies/Cinemas › Food Tab and take the first record\'s Edit link', () => records.firstEditUrl());
   const original = await step('Open its Edit form and note the current Name Alt', () => records.readField(url, 'nameAlt'));
+  await step('Check every multi-line box shows at least 8 lines of text', () => records.expectTextBoxesReadable(8));
   const changed = `${original} AUTOTEST`;
   await test.info().attach('record edited', { body: `${url}\nnameAlt = "${original}" (put back afterwards)`, contentType: 'text/plain' });
   const imagesBefore = await step('Note the tab images shown in the list', () => records.rowImagesLoaded(url));

@@ -9,6 +9,7 @@ test('CMS-TC-041 Genre – Edit', sheet('CMS-TC-041'), async ({ cms, step }) => 
   const records = new RecordPage(cms, pages.genre);
   const url = await step('Open Configurations › Genre and take the first record\'s Edit link', () => records.firstEditUrl());
   const original = await step('Open its Edit form and note the current Description', () => records.readField(url, 'description'));
+  await step('Check every multi-line box shows at least 8 lines of text', () => records.expectTextBoxesReadable(8));
   const changed = `${original} AUTOTEST`;
   await test.info().attach('record edited', { body: `${url}\ndescription = "${original}" (put back afterwards)`, contentType: 'text/plain' });
   try {

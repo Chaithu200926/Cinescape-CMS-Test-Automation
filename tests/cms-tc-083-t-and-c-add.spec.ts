@@ -11,6 +11,7 @@ test('CMS-TC-083 T & C – Add', sheet('CMS-TC-083'), async ({ cms, step }) => {
   await step('Open Configurations › T & C', () => records.open());
   await step('Click the Add button', () => records.clickAdd());
   await step('Check the Add form is shown', () => records.expectAddFormOpen());
+  await step('Check every multi-line box shows at least 8 lines of text', () => records.expectTextBoxesReadable(8));
   await step('Check More type is preselected as TNC (manual checklist)', async () => {
     await expect.soft(records.field('moreType')).toHaveValue('TNC');
   });

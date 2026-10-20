@@ -154,6 +154,53 @@ export class RecordPage extends ListPage {
     expect.soft(blank, 'editor buttons without a visible icon').toEqual([]);
   }
 
+  /**
+   * Every multi-line box of the open form (rich-text editors and multi-line text boxes) shows at least `minLines`
+   * lines, so the text entered can be read without scrolling inside a tiny box. Soft check: every box is reported.
+   * A table of all boxes (visible lines, size, how much of the text fits) is attached to the test.
+   */
+  async expectTextBoxesReadable(minLines = 8): Promise<void> {
+    const boxes = await this.page.evaluate(() => {
+      const visible = (el: Element) => {
+        const r = el.getBoundingClientRect();
+        const s = getComputedStyle(el);
+        return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none';
+      };
+      const label = (el: Element) => {
+        const group = el.closest('.form-group, .row, td, div');
+        const byFor = el.id ? document.querySelector(`label[for="${el.id}"]`) : null;
+        const text = (byFor ?? group?.querySelector('label') ?? null)?.textContent ?? '';
+        return text.replace(/\s+/g, ' ').replace('*', '').trim();
+      };
+      const editors = [...document.querySelectorAll('.jodit-wysiwyg, .note-editable, textarea')].filter((el) => visible(el) && !el.closest('.jodit-source, .note-codable'));
+      return editors.map((el) => {
+        const s = getComputedStyle(el);
+        const font = parseFloat(s.fontSize) || 14;
+        const line = s.lineHeight === 'normal' ? font * 1.2 : parseFloat(s.lineHeight) || font * 1.2;
+        const inner = el.clientHeight - (parseFloat(s.paddingTop) || 0) - (parseFloat(s.paddingBottom) || 0);
+        const host = el.closest('.jodit-container, .note-editor');
+        const source = host?.parentElement?.querySelector('textarea[name]') ?? el;
+        const name = (source as HTMLTextAreaElement).name || (el as HTMLTextAreaElement).name || '';
+        return {
+          box: label(host ?? el) || label(source) || name || el.className,
+          name,
+          editor: el.classList.contains('jodit-wysiwyg') ? 'rich-text (Jodit)' : el.classList.contains('note-editable') ? 'rich-text (Summernote)' : 'text box',
+          lines: Math.round((inner / line) * 10) / 10,
+          height: Math.round(el.clientHeight),
+          width: Math.round(el.clientWidth),
+          textFits: el.scrollHeight <= el.clientHeight + 2 ? 'yes' : `no: ${Math.round((el.clientHeight / el.scrollHeight) * 100)}% visible`,
+        };
+      });
+    });
+    const table = boxes.length
+      ? ['Box | editor | visible lines | height px | width px | saved text fits', ...boxes.map((b) => `${b.box} | ${b.editor} | ${b.lines} | ${b.height} | ${b.width} | ${b.textFits}`)].join('\n')
+      : '(no multi-line boxes on this form)';
+    await test.info().attach('text box sizes', { body: table, contentType: 'text/plain' });
+    for (const b of boxes) {
+      expect.soft(b.lines, `"${b.box}" shows ${b.lines} lines (${b.height} px high); minimum is ${minLines} lines`).toBeGreaterThanOrEqual(minLines);
+    }
+  }
+
   /** Presses Submit / Add / Update of the form holding `field` and waits for the CMS to move on (the form was saved). */
   async submit(field?: string): Promise<void> {
     const before = this.page.url();
