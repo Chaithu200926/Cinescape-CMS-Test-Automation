@@ -11,6 +11,8 @@ from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.styles.differential import DifferentialStyle
 
 cases_file, out_file = sys.argv[1], sys.argv[2]
+import os
+RCA_DATE = os.environ.get('RCA_DATE', '14 Oct 2026')  # date in the sheet titles
 envs = [  # (label, results json, address, run description)
     ('UAT', sys.argv[3], 'http://10.35.1.66:8092', sys.argv[6]),
     ('UAT (internal)', sys.argv[4], 'http://10.35.1.66:8102', sys.argv[7]),
@@ -42,6 +44,25 @@ results = [load(e[1]) for e in envs]
 
 # Reason (short) and remark (detail) of a failure, from the case and its error on that environment.
 def reason(cid, r, env):
+    # Text box size failures ("... shows 1.7 lines (50 px high); allowed is 8-25 lines: too small") are reported on
+    # their own and combined with any other failure of the case.
+    lines = r['error'].split('\n')
+    is_size = lambda l: 'allowed is' in l and 'lines:' in l
+    sizes = sorted({l.replace('Error: ', '').strip() for l in lines if is_size(l)})
+    rest = '\n'.join(l for l in lines if not is_size(l))
+    issue, short, text = base_reason(cid, dict(r, error=rest), env) if not only_size_errors(rest) else (None, None, None)
+    if sizes:
+        size_text = 'Text boxes too small to read (allowed: long text 8-25 lines, short fields 3-10): ' + '; '.join(sizes)
+        if short:
+            return issue, f'{short} + text box too small', f'{text}\n{size_text}'
+        return 'Application issue', 'Text box too small', size_text
+    return issue, short, text
+
+def only_size_errors(text):
+    # The remaining lines of a soft-check failure are only expect() details (Expected / Received / call stack).
+    return not any(k in text for k in ('Error:', 'TimeoutError', 'Test timeout'))
+
+def base_reason(cid, r, env):
     e, step = r['error'], r['step']
     n = int(cid[-3:])
     rules = [
@@ -105,7 +126,7 @@ def set_cell(ws, row, col, v):
 wb = openpyxl.Workbook()
 # ---------------- All test cases ----------------
 ws = wb.active; ws.title = 'All test cases'
-ws['A1'] = 'All test cases - UAT, UAT (internal) and Pre-UAT (14 Oct 2026)'; ws['A1'].font = Font(name='Calibri', size=13, bold=True)
+ws['A1'] = f'All test cases - UAT, UAT (internal) and Pre-UAT ({RCA_DATE})'; ws['A1'].font = Font(name='Calibri', size=13, bold=True)
 cols = ['Test ID', 'Test case', 'Description (expected result)', 'Test steps']
 for label, *_ in envs: cols += [f'{label} result', f'{label} issue type', f'{label} reason']
 cols.append('Remarks')
@@ -151,7 +172,7 @@ for k in range(len(envs)):
 
 # ---------------- Failed cases ----------------
 fs = wb.create_sheet('Failed cases')
-fs['A1'] = 'Failed cases - UAT, UAT (internal) and Pre-UAT (14 Oct 2026)'; fs['A1'].font = Font(name='Calibri', size=13, bold=True)
+fs['A1'] = f'Failed cases - UAT, UAT (internal) and Pre-UAT ({RCA_DATE})'; fs['A1'].font = Font(name='Calibri', size=13, bold=True)
 fs['A2'] = 'Manual check status: choose Passed or Failed after checking the case by hand on that environment.'; fs['A2'].font = body
 fcols = ['Test ID', 'Test case']
 for label, *_ in envs: fcols += [f'{label} result', f'{label} issue type', f'{label} reason']
