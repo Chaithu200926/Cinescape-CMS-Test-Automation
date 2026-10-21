@@ -49,7 +49,8 @@ T&C / Privacy, Sync Movies stays on Movies, uploaded images show in the list, Fo
 platform saved, report fields filled in (Wallet Recharge, Customer Details, Kiosk), the role shown on Assign Role
 Access, downloaded exports with their columns filled (Cancellation "User Name" and date, Wallet "Member ID", Refund "IP
 Address"), one font size per column (Seat Category), sort icons (Audit Report) and text-editor icons (Ratings).
-Every test also fails on any server error (5xx), missing script/style file or script error while the page is open.
+Every test also fails on any server error (5xx) or missing script/style file while the page is open. A script error
+(e.g. "validateFaq is not defined") does not fail a case whose steps all worked: it is reported as a finding.
 CMS issues that do not break the case (e.g. the delete script's `#delkey` error) are recorded as a **finding**.
 
 ## Old data is always put back

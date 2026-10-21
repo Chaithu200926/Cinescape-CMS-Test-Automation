@@ -80,9 +80,15 @@ export function finding(description: string): void {
   test.info().annotations.push({ type: 'finding', description });
 }
 
-/** Last check of every test: no server errors, missing page files or script errors while the CMS was open. */
+/**
+ * Last check of every test: no server errors or missing page files while the CMS was open. Script errors (e.g.
+ * "validateFaq is not defined") do not fail a case whose steps all worked: they are reported as findings
+ * (agreed with the QA team, 21 Oct 2026).
+ */
 export function expectNoCmsErrors(cms: Cms): void {
-  expect(cms.problems, 'no server errors, missing page files or script errors').toEqual([]);
+  const scriptErrors = [...new Set(cms.problems.filter((p) => p.startsWith('script error:')))];
+  for (const e of scriptErrors) finding(`Page ${e} (the case works; the page's script needs a fix)`);
+  expect(cms.problems.filter((p) => !p.startsWith('script error:')), 'no server errors or missing page files').toEqual([]);
 }
 
 /** Sign-ins after the CMS ended the session during a run (at most a few per worker, so the account is never locked). */

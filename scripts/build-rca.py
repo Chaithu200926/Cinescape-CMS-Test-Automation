@@ -186,6 +186,17 @@ for t in [
     'UAT (internal) runs the older CMS pages (Login button, no Light / Dark switch, Summernote editors, Add Food still offered); the tests handle both designs.',
 ]:
     rr += 1; sm.cell(rr, 1, t).font = body
+# Page script errors of cases that work (reported as findings since 21 Oct 2026), with their cases and environments.
+script_errors = {}
+for (label, *_), res in zip(envs, results):
+    for cid, r in res.items():
+        for n in r['notes']:
+            if n['type'] == 'finding' and n['description'].startswith('Page script error:'):
+                script_errors.setdefault(n['description'], {}).setdefault(cid, []).append(label)
+for text, by_case in sorted(script_errors.items(), key=lambda kv: min(kv[1])):
+    labels = sorted({l for ls in by_case.values() for l in ls}, key=[e[0] for e in envs].index)
+    where = '' if len(labels) == len(envs) else f" ({', '.join(labels)})"
+    rr += 1; sm.cell(rr, 1, f"{text} - cases {', '.join(c[-3:] for c in sorted(by_case))}{where}").font = body
 
 wb.save(out_file)
 print(out_file)
