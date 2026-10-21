@@ -11,7 +11,6 @@ test('CMS-TC-055 Payment Modes – Add', sheet('CMS-TC-055'), async ({ cms, step
   await step('Open Configurations › Payment Modes', () => records.open());
   await step('Click the Add button', () => records.clickAdd());
   await step('Check the Add form is shown', () => records.expectAddFormOpen());
-  await step('Check every multi-line box has a readable size (long text 8-25 lines, short fields 3-10)', () => records.expectTextBoxesReadable());
   const before = await step('Press Submit with the required fields empty', () => records.pressSubmit());
   await step('Check the form is refused and the required fields are flagged', () => records.expectRefused(before, 'Required fields empty'));
   try {

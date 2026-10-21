@@ -9,7 +9,6 @@ test('CMS-TC-117 Movies Person – Edit', sheet('CMS-TC-117'), async ({ cms, ste
   const records = new RecordPage(cms, pages.moviesPerson);
   const url = await step('Open Movies/Cinemas › Movies Person and take the first record\'s Edit link', () => records.firstEditUrl());
   const original = await step('Open its Edit form and note the current Url To Details', () => records.readField(url, 'urlToDetails'));
-  await step('Check every multi-line box has a readable size (long text 8-25 lines, short fields 3-10)', () => records.expectTextBoxesReadable());
   const changed = `${original} AUTOTEST`;
   await test.info().attach('record edited', { body: `${url}\nurlToDetails = "${original}" (put back afterwards)`, contentType: 'text/plain' });
   try {

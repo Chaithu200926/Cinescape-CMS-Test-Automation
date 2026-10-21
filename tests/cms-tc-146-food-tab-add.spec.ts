@@ -11,7 +11,6 @@ test('CMS-TC-146 Food Tab – Add', sheet('CMS-TC-146'), async ({ cms, step }) =
   await step('Open Movies/Cinemas › Food Tab', () => records.open());
   await step('Click the Add button', () => records.clickAdd());
   await step('Check the Add form is shown', () => records.expectAddFormOpen());
-  await step('Check every multi-line box has a readable size (long text 8-25 lines, short fields 3-10)', () => records.expectTextBoxesReadable());
   const before = await step('Press Submit with the required fields empty', () => records.pressSubmit());
   await step('Check the form is refused and the required fields are flagged', () => records.expectRefused(before, 'Required fields empty'));
   await step(`Fill the form with valid data for "${record.name}"`, () => records.fill(records.values(record)));

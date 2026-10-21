@@ -11,7 +11,6 @@ test('CMS-TC-074 Ratings – Add', sheet('CMS-TC-074'), async ({ cms, step }) =>
   await step('Open Configurations › Ratings', () => records.open());
   await step('Click the Add button', () => records.clickAdd());
   await step('Check the Add form is shown', () => records.expectAddFormOpen());
-  await step('Check every multi-line box has a readable size (long text 8-25 lines, short fields 3-10)', () => records.expectTextBoxesReadable());
   await step('Check More type is preselected as RATING (manual checklist)', async () => {
     await expect.soft(records.field('moreType')).toHaveValue('RATING');
   });

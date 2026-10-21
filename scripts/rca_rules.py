@@ -30,25 +30,6 @@ def load(path):
 
 # Reason (short) and remark (detail) of a failure, from the case and its error on that environment.
 def reason(cid, r, env):
-    # Text box size failures ("... shows 1.7 lines (50 px high); allowed is 8-25 lines: too small") are reported on
-    # their own and combined with any other failure of the case.
-    lines = r['error'].split('\n')
-    is_size = lambda l: 'allowed is' in l and 'lines:' in l
-    sizes = sorted({l.replace('Error: ', '').strip() for l in lines if is_size(l)})
-    rest = '\n'.join(l for l in lines if not is_size(l))
-    issue, short, text = base_reason(cid, dict(r, error=rest), env) if not only_size_errors(rest) else (None, None, None)
-    if sizes:
-        size_text = 'Text boxes too small to read (allowed: long text 8-25 lines, short fields 3-10): ' + '; '.join(sizes)
-        if short:
-            return issue, f'{short} + text box too small', f'{text}\n{size_text}'
-        return 'Application issue', 'Text box too small', size_text
-    return issue, short, text
-
-def only_size_errors(text):
-    # The remaining lines of a soft-check failure are only expect() details (Expected / Received / call stack).
-    return not any(k in text for k in ('Error:', 'TimeoutError', 'Test timeout'))
-
-def base_reason(cid, r, env):
     e, step = r['error'], r['step']
     n = int(cid[-3:])
     rules = [

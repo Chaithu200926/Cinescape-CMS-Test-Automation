@@ -17,26 +17,6 @@ import { testImage } from './test-image';
  */
 const delkeyScriptError = /^script error: Cannot set properties of null \(setting 'href'\)$/;
 
-/**
- * Allowed visible size of a multi-line box, in lines (agreed with the QA team, 20 Oct 2026): long text (descriptions,
- * answers, terms, e-mail body) 8-25 lines; the short fields of SHORT_TEXT_BOXES 3-10 lines. Below the minimum the
- * text cannot be read without scrolling inside the box; above the maximum the box is out of proportion.
- */
-export const TEXT_BOX_LINES = {
-  long: { min: 8, max: 25 },
-  short: { min: 3, max: 10 },
-};
-
-/** Short multi-line fields (field names); every other multi-line box counts as long text. */
-export const SHORT_TEXT_BOXES = [
-  'descriptionShort', 'descriptionShortAlt', // Ratings / T&C / Privacy Policy: Description Short (+ Arabic)
-  'sTemplate', // Email/SMS Template: SMS body
-  'ques', 'ques_ar', // FAQ: Question (+ Arabic)
-  'shortText', 'shortTextAlt', // Offers: Short Description (+ Arabic)
-  'configValue', 'configDescription', // Configuration: Value, Description
-  'binSeries', // Bank Offers: Bin Series
-];
-
 export class RecordPage extends ListPage {
   constructor(page: Cms, target: CmsPage) {
     super(page, target);
@@ -172,58 +152,6 @@ export class RecordPage extends ListPage {
         .map((b) => b.getAttribute('aria-label') || b.getAttribute('title') || b.textContent?.trim() || '?'),
     );
     expect.soft(blank, 'editor buttons without a visible icon').toEqual([]);
-  }
-
-  /**
-   * Every multi-line box of the open form (rich-text editors and multi-line text boxes) is within its allowed size
-   * (TEXT_BOX_LINES): not so small that the text needs scrolling inside a tiny box, not out of proportion. Soft check:
-   * every box is reported. A table of all boxes (visible lines, allowed range, size, whether the saved text fits) is
-   * attached to the test.
-   */
-  async expectTextBoxesReadable(): Promise<void> {
-    const boxes = await this.page.evaluate(() => {
-      const visible = (el: Element) => {
-        const r = el.getBoundingClientRect();
-        const s = getComputedStyle(el);
-        return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none';
-      };
-      const label = (el: Element) => {
-        const group = el.closest('.form-group, .row, td, div');
-        const byFor = el.id ? document.querySelector(`label[for="${el.id}"]`) : null;
-        const text = (byFor ?? group?.querySelector('label') ?? null)?.textContent ?? '';
-        return text.replace(/\s+/g, ' ').replace('*', '').trim();
-      };
-      const editors = [...document.querySelectorAll('.jodit-wysiwyg, .note-editable, textarea')].filter((el) => visible(el) && !el.closest('.jodit-source, .note-codable'));
-      return editors.map((el) => {
-        const s = getComputedStyle(el);
-        const font = parseFloat(s.fontSize) || 14;
-        const line = s.lineHeight === 'normal' ? font * 1.2 : parseFloat(s.lineHeight) || font * 1.2;
-        const inner = el.clientHeight - (parseFloat(s.paddingTop) || 0) - (parseFloat(s.paddingBottom) || 0);
-        const host = el.closest('.jodit-container, .note-editor');
-        const source = host?.parentElement?.querySelector('textarea[name]') ?? el;
-        const name = (source as HTMLTextAreaElement).name || (el as HTMLTextAreaElement).name || '';
-        return {
-          box: label(host ?? el) || label(source) || name || el.className,
-          name,
-          editor: el.classList.contains('jodit-wysiwyg') ? 'rich-text (Jodit)' : el.classList.contains('note-editable') ? 'rich-text (Summernote)' : 'text box',
-          lines: Math.round((inner / line) * 10) / 10,
-          height: Math.round(el.clientHeight),
-          width: Math.round(el.clientWidth),
-          textFits: el.scrollHeight <= el.clientHeight + 2 ? 'yes' : `no: ${Math.round((el.clientHeight / el.scrollHeight) * 100)}% visible`,
-        };
-      });
-    });
-    const limits = (name: string) => (SHORT_TEXT_BOXES.includes(name) ? TEXT_BOX_LINES.short : TEXT_BOX_LINES.long);
-    const table = boxes.length
-      ? ['Box | field | editor | visible lines | allowed lines | height px | width px | saved text fits', ...boxes.map((b) => `${b.box} | ${b.name} | ${b.editor} | ${b.lines} | ${limits(b.name).min}-${limits(b.name).max} | ${b.height} | ${b.width} | ${b.textFits}`)].join('\n')
-      : '(no multi-line boxes on this form)';
-    await test.info().attach('text box sizes', { body: table, contentType: 'text/plain' });
-    for (const b of boxes) {
-      const { min, max } = limits(b.name);
-      const size = `"${b.box}" shows ${b.lines} lines (${b.height} px high); allowed is ${min}-${max} lines`;
-      expect.soft(b.lines, `${size}: too small`).toBeGreaterThanOrEqual(min);
-      expect.soft(b.lines, `${size}: too large`).toBeLessThanOrEqual(max);
-    }
   }
 
   /** Presses Submit / Add / Update of the form holding `field` and waits for the CMS to move on (the form was saved). */

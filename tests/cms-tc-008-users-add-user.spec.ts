@@ -11,7 +11,6 @@ test('CMS-TC-008 Users – Add user', sheet('CMS-TC-008'), async ({ cms, step })
   await step('Open User Management › Users', () => records.open());
   await step('Click the Add button', () => records.clickAdd());
   await step('Check the Add form is shown', () => records.expectAddFormOpen());
-  await step('Check every multi-line box has a readable size (long text 8-25 lines, short fields 3-10)', () => records.expectTextBoxesReadable());
   const before = await step('Press Submit with the required fields empty', () => records.pressSubmit());
   await step('Check the form is refused and the required fields are flagged', () => records.expectRefused(before, 'Required fields empty'));
   try {

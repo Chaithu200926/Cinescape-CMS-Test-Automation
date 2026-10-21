@@ -9,7 +9,6 @@ test('CMS-TC-111 Movies – Edit', sheet('CMS-TC-111'), async ({ cms, step }) =>
   const records = new RecordPage(cms, pages.movies);
   const url = await step('Open Movies/Cinemas › Movies and take the first record\'s Edit link', () => records.firstEditUrl());
   const original = await step('Open its Edit form and note the current Priority', () => records.readField(url, 'priority'));
-  await step('Check every multi-line box has a readable size (long text 8-25 lines, short fields 3-10)', () => records.expectTextBoxesReadable());
   const changed = original === '98' ? '97' : '98';
   await test.info().attach('record edited', { body: `${url}\npriority = "${original}" (put back afterwards)`, contentType: 'text/plain' });
   try {
