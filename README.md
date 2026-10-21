@@ -9,6 +9,11 @@ and TypeScript. The **same 250 tests** run on three environments:
 | UAT (internal) | `http://10.35.1.66:8102` | `npm run test:uat-internal` | `test-results-uat-internal/`, `playwright-report-uat-internal/`, `dashboard-uat-internal/` |
 | Pre-UAT | `http://10.35.1.66:8122` | `npm run test:pre-uat` | `test-results-pre-uat/`, `playwright-report-pre-uat/`, `dashboard-pre-uat/` |
 
+**Never run UAT (internal) and Pre-UAT at the same time: they share the same data.** Each test first deletes every
+AUTOTEST record left by earlier runs, so a parallel run deletes the other run's test records, and an edit-and-restore
+test can note the other run's change as the "original" value and leave it behind (seen on 21 Oct 2026). UAT has its
+own data and can run alongside either one.
+
 The environment comes from `CMS_ENV` ([`src/config.ts`](src/config.ts)), set by `playwright.uat-internal.config.ts` /
 `playwright.pre-uat.config.ts`. Each environment has its own sign-in session (`.auth/state-<env>.json`) and may have
 its own account in `.env` (`CMS_USERNAME_UAT_INTERNAL`, `CMS_USERNAME_PRE_UAT`, ...; otherwise the UAT one is used).

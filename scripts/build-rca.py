@@ -182,6 +182,7 @@ for t in [
     'A Payment Mode name over 30 characters gives "Something went wrong, Please try again." instead of a clear message or a length limit.',
     'Food and Beverages, Cancellations and Refund reports start with empty dates; Submit then answers "Invalid date format." instead of asking for the dates.',
     'UAT: test data that cannot be removed through the CMS (Genre has no delete): genre "AUTOTEST T040-1011101157" (id CMS-897C62B5) - please remove it in the database.',
+    'UAT (internal) and Pre-UAT share the same data (a record changed on one shows on the other); UAT has its own. Their test runs are done one after the other.',
     'UAT (internal) runs the older CMS pages (Login button, no Light / Dark switch, Summernote editors, Add Food still offered); the tests handle both designs.',
 ]:
     rr += 1; sm.cell(rr, 1, t).font = body
