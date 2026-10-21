@@ -19,3 +19,4 @@ inspect/
 .env
 # Results kept for building the RCA workbook (scripts/build-rca.py).
 .rca-inputs/
+__pycache__/
