@@ -32,8 +32,8 @@ export default defineConfig({
     actionTimeout: 30_000,
     navigationTimeout: 60_000,
     screenshot: 'on',
-    // Every test is recorded (passed ones too), like the Web and Android projects; the dashboard plays the video.
-    video: 'on',
+    // Only failed tests keep their video; the dashboard plays it. Passed tests have their step screenshots.
+    video: 'retain-on-failure',
     trace: 'retain-on-failure',
   },
 });

@@ -87,8 +87,8 @@ npm run report                                    # Playwright HTML report (also
 npm run probe                                     # save every page and Add form to inspect/uat (CMS_ENV=pre-uat ... for others)
 ```
 
-Every test is **recorded on video** and every step has a **screenshot** (taken at the end of the step, also when it
-fails). The dashboard ([`scripts/generate-dashboard.js`](scripts/generate-dashboard.js), same as the Web project)
+Every **failed** test keeps a **video** of its run, and every step has a **screenshot** (taken at the end of the step,
+also when it fails). The dashboard ([`scripts/generate-dashboard.js`](scripts/generate-dashboard.js), same as the Web project)
 shows them per test, with **All / Failed / Passed / Skipped** filters, a search box and the last 10 runs.
 
 The run signs in **once** ([`src/global-setup.ts`](src/global-setup.ts)) and reuses the session, so the admin
