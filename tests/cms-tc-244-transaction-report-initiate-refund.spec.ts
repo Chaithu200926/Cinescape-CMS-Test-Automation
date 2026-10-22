@@ -3,8 +3,10 @@
 import { test, expect, sheet, expectNoCmsErrors } from '../src/fixtures';
 import { pages } from '../src/cms-pages';
 import { ReportPage } from '../src/report-page';
+import { realActions, notApproved } from '../src/config';
 
 test('CMS-TC-244 Transaction Report – Initiate refund', sheet('CMS-TC-244'), async ({ cms, step }) => {
+  test.skip(!realActions.refund, notApproved);
   // A real refund through the payment gateway on UAT (approved 11 Oct 2026); it cannot be undone.
   const report = new ReportPage(cms, pages.refundTransactions);
   await step('Open Refund › Transaction Report', () => report.open());

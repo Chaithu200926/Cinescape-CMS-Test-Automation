@@ -3,8 +3,10 @@
 import { test, expect, sheet, expectNoCmsErrors } from '../src/fixtures';
 import { pages } from '../src/cms-pages';
 import { ListPage } from '../src/list-page';
+import { realActions, notApproved } from '../src/config';
 
 test('CMS-TC-017 Configuration – Sync Config', sheet('CMS-TC-017'), async ({ cms, step }) => {
+  test.skip(!realActions.sync, notApproved);
   // A real Sync Config on UAT (approved 11 Oct 2026). The CMS answers the request when the sync has finished.
   test.setTimeout(600_000);
   const list = new ListPage(cms, pages.configuration);

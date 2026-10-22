@@ -478,7 +478,8 @@ function specialBody(a, c, v) {
   if (a === 'sync') {
     const label = /import/i.test(c.feature) ? 'Import Data' : /config/i.test(c.feature) ? 'Sync Config' : /movie/i.test(c.feature) ? 'Sync Movies' : 'Sync Data';
     const movies = label === 'Sync Movies';
-    return `  // A real ${label} on UAT (approved 11 Oct 2026). The CMS answers the request when the sync has finished.
+    return `  test.skip(!realActions.sync, notApproved);
+  // A real ${label} on UAT (approved 11 Oct 2026). The CMS answers the request when the sync has finished.
   test.setTimeout(600_000);
   const list = new ListPage(cms, pages.${v});
   await step(${q(`Open ${c.menu} › ${c.submenu}`)}, () => list.open());
@@ -509,7 +510,8 @@ function specialBody(a, c, v) {
   });`;
   }
   if (a === 'seatcat') {
-    return `  // A real seat-category update for the first cinema on UAT (approved 11 Oct 2026).
+    return `  test.skip(!realActions.sync, notApproved);
+  // A real seat-category update for the first cinema on UAT (approved 11 Oct 2026).
   const list = new ListPage(cms, pages.${v});
   await step('Open Movies/Cinemas › Cinemas', () => list.open());
   const cinema = await step('Note the first cinema', async () => (await list.table.rows.first().locator('td').nth(2).textContent())?.trim());
@@ -571,7 +573,8 @@ ${createSteps('users', 'user')}
 ${cleanup('user', 'users')}`;
   }
   if (a === 'resend') {
-    return `  // The password e-mail goes only to the test's own AUTOTEST user, never to a real account.
+    return `  test.skip(!realActions.resendPassword, notApproved);
+  // The password e-mail goes only to the test's own AUTOTEST user, never to a real account.
   // (Manual checklist: "Resend Password mail not receiving": the mailbox cannot be checked from here.)
   const users = new RecordPage(cms, pages.${v});
   const record = users.newRecord(${q(c.id)});
@@ -597,7 +600,8 @@ ${createSteps('users', 'user')}
 ${cleanup('user', 'users')}`;
   }
   if (a === 'refund') {
-    return `  // A real refund through the payment gateway on UAT (approved 11 Oct 2026); it cannot be undone.
+    return `  test.skip(!realActions.refund, notApproved);
+  // A real refund through the payment gateway on UAT (approved 11 Oct 2026); it cannot be undone.
   const report = new ReportPage(cms, pages.${v});
   await step('Open Refund › Transaction Report', () => report.open());
   await step('Press Submit with the default filters: the break transactions are listed', () => report.submit());
@@ -691,7 +695,8 @@ for (const c of cases) {
   if (/ListPage/.test(code)) imports.push(`import { ListPage } from '../src/list-page';`);
   if (/new RecordPage/.test(code)) imports.push(`import { RecordPage${/saveImage/.test(code) ? ', saveImage' : ''} } from '../src/record-page';`);
   if (/new ReportPage/.test(code)) imports.push(`import { ReportPage } from '../src/report-page';`);
-  if (/config\./.test(code)) imports.push(`import { config } from '../src/config';`);
+  const fromConfig = [/config\./.test(code) && 'config', /realActions/.test(code) && 'realActions, notApproved'].filter(Boolean);
+  if (fromConfig.length) imports.push(`import { ${fromConfig.join(', ')} } from '../src/config';`);
   if (/testImage\(/.test(code)) imports.push(`import { testImage } from '../src/test-image';`);
   const header = [
     `// ${c.id} ${key} – ${c.feature.trim()}: one CMS test case (${Number(c.id.slice(-3)) > 244 ? 'manual checklist "cms test.xlsx"' : 'CMS_Test_Cases.xlsx'}).`,

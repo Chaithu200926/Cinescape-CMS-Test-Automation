@@ -1,5 +1,5 @@
 // Settings from .env (see .env.example). Secrets never live in code.
-// The same tests run on three CMS environments, chosen with CMS_ENV (set by playwright.<env>.config.ts / npm run test:<env>).
+// The same tests run on four CMS environments, chosen with CMS_ENV (set by playwright.<env>.config.ts / npm run test:<env>).
 import path from 'node:path';
 import dotenv from 'dotenv';
 
@@ -10,6 +10,7 @@ export const environments = {
   uat: { name: 'UAT', url: 'http://10.35.1.66:8092' },
   'uat-internal': { name: 'UAT (internal)', url: 'http://10.35.1.66:8102' },
   'pre-uat': { name: 'Pre-UAT', url: 'http://10.35.1.66:8122' },
+  'pre-prod': { name: 'Pre-Prod', url: 'http://10.35.1.66:8112' },
 } as const;
 export type CmsEnv = keyof typeof environments;
 
@@ -39,6 +40,21 @@ export const config = {
   reportDir: named('playwright-report'),
   dashboardDir: named('dashboard'),
 };
+
+/**
+ * Real actions that cannot be put back, per environment. Approved on UAT, UAT (internal) and Pre-UAT (11 Oct 2026);
+ * on Pre-Prod only test data may be added, edited and deleted (22 Oct 2026), so these tests are skipped there.
+ */
+const onPreProd = env === 'pre-prod';
+export const realActions = {
+  /** Sync Config / Import Data / Sync Data / Sync Movies / Update SeatCat: pull data from the ticketing system. */
+  sync: !onPreProd,
+  /** Initiate Refund: a real refund through the payment gateway. */
+  refund: !onPreProd,
+  /** Resend Password: an e-mail to the test's own AUTOTEST user. */
+  resendPassword: !onPreProd,
+};
+export const notApproved = `Not run on ${environments[env].name}: this real action is not approved there (22 Oct 2026).`;
 
 /** Name prefix of every record the write tests create; only such records are edited or deleted. */
 export const AUTOTEST_PREFIX = 'AUTOTEST';

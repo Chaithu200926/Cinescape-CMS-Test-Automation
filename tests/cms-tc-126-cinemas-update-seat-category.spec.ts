@@ -3,8 +3,10 @@
 import { test, expect, sheet, expectNoCmsErrors } from '../src/fixtures';
 import { pages } from '../src/cms-pages';
 import { ListPage } from '../src/list-page';
+import { realActions, notApproved } from '../src/config';
 
 test('CMS-TC-126 Cinemas – Update Seat category', sheet('CMS-TC-126'), async ({ cms, step }) => {
+  test.skip(!realActions.sync, notApproved);
   // A real seat-category update for the first cinema on UAT (approved 11 Oct 2026).
   const list = new ListPage(cms, pages.cinemas);
   await step('Open Movies/Cinemas › Cinemas', () => list.open());

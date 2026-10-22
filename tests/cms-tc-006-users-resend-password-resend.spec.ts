@@ -3,8 +3,10 @@
 import { test, expect, sheet, expectNoCmsErrors } from '../src/fixtures';
 import { pages } from '../src/cms-pages';
 import { RecordPage } from '../src/record-page';
+import { realActions, notApproved } from '../src/config';
 
 test('CMS-TC-006 Users – Resend password resend', sheet('CMS-TC-006'), async ({ cms, step }) => {
+  test.skip(!realActions.resendPassword, notApproved);
   // The password e-mail goes only to the test's own AUTOTEST user, never to a real account.
   // (Manual checklist: "Resend Password mail not receiving": the mailbox cannot be checked from here.)
   const users = new RecordPage(cms, pages.users);
