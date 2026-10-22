@@ -16,6 +16,7 @@ const ENVIRONMENTS = {
   uat: { name: 'UAT', url: 'http://10.35.1.66:8092' },
   'uat-internal': { name: 'UAT (internal)', url: 'http://10.35.1.66:8102' },
   'pre-uat': { name: 'Pre-UAT', url: 'http://10.35.1.66:8122' },
+  'pre-prod': { name: 'Pre-Prod', url: 'http://10.35.1.66:8112' },
 };
 const cmsEnv = process.env.CMS_ENV || 'uat';
 if (!ENVIRONMENTS[cmsEnv]) throw new Error(`CMS_ENV "${cmsEnv}" is not one of ${Object.keys(ENVIRONMENTS).join(', ')}.`);

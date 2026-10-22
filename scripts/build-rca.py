@@ -1,8 +1,10 @@
-# Usage: python scripts/build-rca.py src/test-cases.ts "<output.xlsx>" <UAT results.json> <UAT-internal results.json> <Pre-UAT results.json> "<UAT run>" "<UAT-internal run>" "<Pre-UAT run>"
-# Results files: test-results*/results.json, or results-merged.json after re-runs (UAT 13 Oct: .rca-inputs/uat-final-run-13oct.json).
-# Builds "Cinescape CMS UAT, UAT internal and Pre-UAT RCA - 14 Oct 2026.xlsx" in the layout of the 14 Oct Web /
-# Android RCA workbooks: summary, "All test cases" (result / issue type / reason per environment + remarks) and
-# "Failed cases" (with a manual check status per environment).
+# Usage: python scripts/build-rca.py src/test-cases.ts "<output.xlsx>" "<Label>::<results.json>::<run description>" ...
+#   one argument per environment (one or more); Label is UAT, UAT (internal), Pre-UAT or Pre-Prod, e.g.
+#   "Pre-Prod::test-results-pre-prod/results.json::22 Oct 2026 (full run)". RCA_DATE sets the date in the titles.
+# Results files: test-results*/results.json, or a merged file after re-runs (.rca-inputs/<env>-<date>-final.json).
+# Builds the RCA workbook in the layout of the 14 Oct Web / Android RCA workbooks: summary, "All test cases" (result /
+# issue type / reason per environment + remarks), "Failed cases" (with a manual check status per environment) and,
+# with more than one environment, "Differences" (the cases whose result is not the same everywhere).
 import json, re, sys
 from rca_rules import load_cases, load, reason
 import openpyxl
@@ -14,11 +16,15 @@ from openpyxl.styles.differential import DifferentialStyle
 cases_file, out_file = sys.argv[1], sys.argv[2]
 import os
 RCA_DATE = os.environ.get('RCA_DATE', '14 Oct 2026')  # date in the sheet titles
-envs = [  # (label, results json, address, run description)
-    ('UAT', sys.argv[3], 'http://10.35.1.66:8092', sys.argv[6]),
-    ('UAT (internal)', sys.argv[4], 'http://10.35.1.66:8102', sys.argv[7]),
-    ('Pre-UAT', sys.argv[5], 'http://10.35.1.66:8122', sys.argv[8]),
-]
+ADDRESSES = {'UAT': 'http://10.35.1.66:8092', 'UAT (internal)': 'http://10.35.1.66:8102',
+             'Pre-UAT': 'http://10.35.1.66:8122', 'Pre-Prod': 'http://10.35.1.66:8112'}
+envs = []  # (label, results json, address, run description)
+for arg in sys.argv[3:]:
+    label, path, run = arg.split('::')
+    envs.append((label, path, ADDRESSES[label], run))
+names = [e[0] for e in envs]
+ENV_NAMES = names[0] if len(names) == 1 else ', '.join(names[:-1]) + ' and ' + names[-1]
+N = len(envs)
 
 cases = load_cases(cases_file)
 
@@ -55,14 +61,14 @@ def set_cell(ws, row, col, v):
 wb = openpyxl.Workbook()
 # ---------------- All test cases ----------------
 ws = wb.active; ws.title = 'All test cases'
-ws['A1'] = f'All test cases - UAT, UAT (internal) and Pre-UAT ({RCA_DATE})'; ws['A1'].font = Font(name='Calibri', size=13, bold=True)
+ws['A1'] = f'All test cases - {ENV_NAMES} ({RCA_DATE})'; ws['A1'].font = Font(name='Calibri', size=13, bold=True)
 cols = ['Test ID', 'Test case', 'Description (expected result)', 'Test steps']
 for label, *_ in envs: cols += [f'{label} result', f'{label} issue type', f'{label} reason']
 cols.append('Remarks')
 header(ws, 3, cols)
-for i, w in enumerate([12, 30, 36, 55] + [11, 16, 24] * 3 + [80], 1):
+for i, w in enumerate([12, 30, 36, 55] + [11, 16, 24] * N + [80], 1):
     ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
-failed_rows = []
+failed_rows, all_rows = [], []
 row = 4
 for c in cases:
     cid = c['id']
@@ -89,6 +95,7 @@ for c in cases:
         lines.append('UAT: intermittent - the same form saved banners in CMS-TC-178/182/183 of the same run, and CMS-TC-177 passed when run again alone.')
     vals.append('\n'.join(lines))
     for i, v in enumerate(vals, 1): set_cell(ws, row, i, v)
+    all_rows.append((cid, title, per_env))
     if any(p[0] == 'Failed' for p in per_env): failed_rows.append((cid, title, per_env, '\n'.join(lines)))
     row += 1
 last = row - 1
@@ -101,42 +108,43 @@ for k in range(len(envs)):
 
 # ---------------- Failed cases ----------------
 fs = wb.create_sheet('Failed cases')
-fs['A1'] = f'Failed cases - UAT, UAT (internal) and Pre-UAT ({RCA_DATE})'; fs['A1'].font = Font(name='Calibri', size=13, bold=True)
+fs['A1'] = f'Failed cases - {ENV_NAMES} ({RCA_DATE})'; fs['A1'].font = Font(name='Calibri', size=13, bold=True)
 fs['A2'] = 'Manual check status: choose Passed or Failed after checking the case by hand on that environment.'; fs['A2'].font = body
 fcols = ['Test ID', 'Test case']
 for label, *_ in envs: fcols += [f'{label} result', f'{label} issue type', f'{label} reason']
-fcols += ['Remarks', 'Manual check status', None, None]
+fcols += ['Remarks', 'Manual check status'] + [None] * (N - 1)
 header(fs, 3, fcols)
-mc = len(fcols) - 2  # first manual check column
+mc = len(fcols) - N + 1  # first manual check column
 header(fs, 4, [None] * (mc - 1) + [label for label, *_ in envs], blue)
 fs.cell(3, mc).fill = blue
 for col in range(1, mc - 1 + 1):
     fs.merge_cells(start_row=3, start_column=col, end_row=4, end_column=col)
-fs.merge_cells(start_row=3, start_column=mc, end_row=3, end_column=mc + 2)
-for i, w in enumerate([12, 30] + [11, 16, 24] * 3 + [70, 14, 14, 14], 1):
+if N > 1: fs.merge_cells(start_row=3, start_column=mc, end_row=3, end_column=mc + N - 1)
+for i, w in enumerate([12, 30] + [11, 16, 24] * N + [70] + [14] * N, 1):
     fs.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
 r = 5
 for cid, title, per_env, remark in failed_rows:
-    vals = [cid, title] + [x for p in per_env for x in p] + [remark, '', '', '']
+    vals = [cid, title] + [x for p in per_env for x in p] + [remark] + [''] * N
     for i, v in enumerate(vals, 1): set_cell(fs, r, i, v)
     r += 1
 flast = max(r - 1, 5)
-fs.freeze_panes = 'C5'; fs.auto_filter.ref = f'A4:{openpyxl.utils.get_column_letter(mc + 2)}{flast}'
+fs.freeze_panes = 'C5'; fs.auto_filter.ref = f'A4:{openpyxl.utils.get_column_letter(mc + N - 1)}{flast}'
 dv2 = DataValidation(type='list', formula1='"Passed,Failed"', allow_blank=True); fs.add_data_validation(dv2)
 for k in range(len(envs)):
     cf(fs, openpyxl.utils.get_column_letter(3 + 3 * k), 5, flast, 'result'); cf(fs, openpyxl.utils.get_column_letter(4 + 3 * k), 5, flast, 'issue')
-for k in range(3):
+for k in range(N):
     col = openpyxl.utils.get_column_letter(mc + k); cf(fs, col, 5, flast, 'result'); dv2.add(f'{col}5:{col}{flast}')
 
 # ---------------- Summary (first sheet) ----------------
 sm = wb.create_sheet('RCA Report', 0)
-sm['A1'] = 'Cinescape CMS - RCA report (UAT, UAT internal and Pre-UAT)'; sm['A1'].font = Font(name='Calibri', size=13, bold=True)
+sm['A1'] = f'Cinescape CMS - RCA report ({ENV_NAMES})'; sm['A1'].font = Font(name='Calibri', size=13, bold=True)
 notes = [
     'Run date: ' + '; '.join(f'{label} {run}' for label, _, _, run in envs) + ' (Playwright automated cases CMS-TC-001 to CMS-TC-250)',
     '     '.join(f'{label}: {url}' for label, _, url, _ in envs),
     'Issue type: "Application issue" = the CMS needs a fix.  "Script issue" = the CMS changed and the test needs an update. Problems in the tests themselves were found in earlier runs and are fixed: no Script issue is open.',
     'Reason: the short cause of the failure. The full details of every test case (description, steps, results and remarks) are on the sheet "All test cases"; the failed ones, with a manual check status, on "Failed cases".',
-    '"Not run": no data on that environment in the last 30 days, no Reset button on the report (manual checklist: NA), or deferred in the sheet (CMS-TC-044).',
+    '"Not run": no data on that environment in the last 30 days, no Reset button on the report (manual checklist: NA), or deferred in the sheet (CMS-TC-044).'
+    + (' On Pre-Prod only test data is added, edited and deleted: Sync / Import, Update SeatCat, Initiate Refund and Resend Password are not run there (not approved, 22 Oct 2026).' if 'Pre-Prod' in names else ''),
 ]
 for i, t in enumerate(notes, 2): sm.cell(i, 1, t).font = body
 header(sm, 8, [None] + [label for label, *_ in envs])
@@ -177,15 +185,16 @@ for short, sets in sorted(groups.items(), key=lambda kv: -sum(len(s) for s in kv
     rr += 1
 rr += 1
 sm.cell(rr, 1, 'Findings (the cases pass; noted for the developers)').font = bold
-for t in [
-    'Delete and Re-send Password raise a script error ("Cannot set properties of null (setting \'href\')": #delkey is not on the page); the action itself works.',
-    'A Payment Mode name over 30 characters gives "Something went wrong, Please try again." instead of a clear message or a length limit.',
-    'Food and Beverages, Cancellations and Refund reports start with empty dates; Submit then answers "Invalid date format." instead of asking for the dates.',
-    'UAT: test data that cannot be removed through the CMS (Genre has no delete): genre "AUTOTEST T040-1011101157" (id CMS-897C62B5) - please remove it in the database.',
-    'UAT (internal) and Pre-UAT share the same data (a record changed on one shows on the other); UAT has its own. Their test runs are done one after the other.',
-    'UAT (internal) runs the older CMS pages (Login button, no Light / Dark switch, Summernote editors, Add Food still offered); the tests handle both designs.',
+for envs_needed, t in [
+    ((), 'Delete and Re-send Password raise a script error ("Cannot set properties of null (setting \'href\')": #delkey is not on the page); the action itself works.'),
+    ((), 'A Payment Mode name over 30 characters gives "Something went wrong, Please try again." instead of a clear message or a length limit.'),
+    ((), 'Food and Beverages, Cancellations and Refund reports start with empty dates; Submit then answers "Invalid date format." instead of asking for the dates.'),
+    (('UAT',), 'UAT: test data that cannot be removed through the CMS (Genre has no delete): genre "AUTOTEST T040-1011101157" (id CMS-897C62B5) - please remove it in the database.'),
+    (('UAT (internal)', 'Pre-UAT'), 'UAT (internal) and Pre-UAT share the same data (a record changed on one shows on the other); UAT and Pre-Prod have their own. Their test runs are done one after the other.'),
+    (('UAT (internal)',), 'UAT (internal) runs the older CMS pages (Login button, no Light / Dark switch, Summernote editors, Add Food still offered); the tests handle both designs.'),
 ]:
-    rr += 1; sm.cell(rr, 1, t).font = body
+    if all(e in names for e in envs_needed):
+        rr += 1; sm.cell(rr, 1, t).font = body
 # Page script errors of cases that work (reported as findings since 21 Oct 2026), with their cases and environments.
 script_errors = {}
 for (label, *_), res in zip(envs, results):
@@ -197,6 +206,26 @@ for text, by_case in sorted(script_errors.items(), key=lambda kv: min(kv[1])):
     labels = sorted({l for ls in by_case.values() for l in ls}, key=[e[0] for e in envs].index)
     where = '' if len(labels) == len(envs) else f" ({', '.join(labels)})"
     rr += 1; sm.cell(rr, 1, f"{text} - cases {', '.join(c[-3:] for c in sorted(by_case))}{where}").font = body
+
+# ---------------- Differences (comparison) ----------------
+if N > 1:
+    ds = wb.create_sheet('Differences', 1)
+    ds['A1'] = f'Differences between {ENV_NAMES} ({RCA_DATE})'; ds['A1'].font = Font(name='Calibri', size=13, bold=True)
+    ds['A2'] = 'The test cases whose result is not the same on every environment (the other cases have the same result everywhere).'; ds['A2'].font = body
+    dcols = ['Test ID', 'Test case'] + [f'{n} result' for n in names] + [f'{n} reason' for n in names]
+    header(ds, 3, dcols)
+    for i, w in enumerate([12, 34] + [12] * N + [28] * N, 1):
+        ds.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
+    drow = 4
+    for c, (cid, title, per_env) in [(c, x) for c, x in zip(cases, all_rows)]:
+        if len({p[0] for p in per_env}) == 1: continue
+        vals = [cid, title] + [p[0] for p in per_env] + [p[2] or ('' if p[0] != 'Not run' else 'Not run') for p in per_env]
+        for i, v in enumerate(vals, 1): set_cell(ds, drow, i, v)
+        drow += 1
+    dlast = max(drow - 1, 4)
+    for k in range(N): cf(ds, openpyxl.utils.get_column_letter(3 + k), 4, dlast, 'result')
+    ds.freeze_panes = 'C4'; ds.auto_filter.ref = f'A3:{openpyxl.utils.get_column_letter(len(dcols))}{dlast}'
+    print('differences:', drow - 4)
 
 wb.save(out_file)
 print(out_file)
